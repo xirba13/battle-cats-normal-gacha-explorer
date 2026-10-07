@@ -9,8 +9,10 @@ import { advance } from "../src/engine/rng.js";
 import { outcome, positionLabel, rollCell } from "../src/engine/track.js";
 import { findPaths, verifyPath } from "../src/engine/search.js";
 
-// Best (appearances, normal, lucky + lucky G) over all roll sequences.
-function bruteForce({ seed, lastItem, bannerIds, tickets, targets }) {
+// Best path over all roll sequences, ranked like the app: most appearances,
+// fewest normal, fewest lucky + lucky G, then the easiest plan — fewest
+// normal-ticket draws off the base banner, then fewest runs of same-banner draws.
+function bruteForce({ seed, lastItem, bannerIds, tickets, targets, baseBannerId }) {
   const banners = bannerIds.map((id) => BANNER_BY_ID[id]);
   const wanted = new Set(targets);
   const seeds = [seed >>> 0];
@@ -18,37 +20,49 @@ function bruteForce({ seed, lastItem, bannerIds, tickets, targets }) {
     while (seeds.length <= m) seeds.push(advance(seeds[seeds.length - 1]));
     return seeds[m];
   };
+  const key = (c) => [-c.s, c.n, c.l + c.g, c.offBase, c.runs];
+  const better = (a, b) => {
+    if (!b) return true;
+    const ka = key(a);
+    const kb = key(b);
+    for (let i = 0; i < ka.length; i++) if (ka[i] !== kb[i]) return ka[i] < kb[i];
+    return false;
+  };
   let best = null;
-  const better = (a, b) =>
-    !b || a.s > b.s || (a.s === b.s && (a.n < b.n || (a.n === b.n && a.l + a.g < b.l + b.g)));
   const used = { normal: 0, lucky: 0, luckyG: 0 };
-  const walk = (m, last, s) => {
+  const walk = (m, last, s, prevBanner, runs, offBase) => {
     if (s > 0) {
-      const cand = { s, n: used.normal, l: used.lucky, g: used.luckyG };
+      const cand = { s, n: used.normal, l: used.lucky, g: used.luckyG, runs, offBase };
       if (better(cand, best)) best = cand;
     }
     for (const b of banners) {
       if (used[b.ticket] >= (tickets[b.ticket] || 0)) continue;
       const o = outcome(rollCell(seedAt(m), b), last);
       used[b.ticket]++;
-      walk(m + o.advance, o.item, s + (wanted.has(o.item) ? 1 : 0));
+      walk(m + o.advance, o.item, s + (wanted.has(o.item) ? 1 : 0), b.id,
+        runs + (b.id !== prevBanner ? 1 : 0), offBase + (b.ticket === "normal" && b.id !== baseBannerId ? 1 : 0));
       used[b.ticket]--;
     }
   };
-  walk(0, lastItem, 0);
+  walk(0, lastItem, 0, null, 0, 0);
   return best;
 }
 
 const CASES = [
-  { bannerIds: ["ce", "lt"], tickets: { normal: 5, lucky: 3, luckyG: 0 }, targets: ["rare-catseye", "30k-xp", "speed-up", "super-rare-catseye"] },
-  { bannerIds: ["np", "ce", "lt", "ltg"], tickets: { normal: 3, lucky: 2, luckyG: 2 }, targets: ["special-catseye", "catamin-b", "lil-cat", "superfeline", "10k-xp"] },
-  { bannerIds: ["cf", "ce", "lt"], tickets: { normal: 4, lucky: 3, luckyG: 0 }, targets: ["cat-cpu", "speed-up", "100k-xp", "rare-catseye"] },
-  { bannerIds: ["n", "ltg"], tickets: { normal: 4, lucky: 0, luckyG: 4 }, targets: ["catamin-a", "catamin-b", "cat-energy", "study"] },
-  { bannerIds: ["lt", "ltg"], tickets: { normal: 0, lucky: 4, luckyG: 3 }, targets: ["30k-xp", "10k-xp", "catamin-c", "100k-xp-beta"] },
+  { bannerIds: ["ce", "lt"], tickets: { normal: 5, lucky: 3, luckyG: 0 }, targets: ["rare-catseye", "30k-xp", "speed-up", "super-rare-catseye"], baseBannerId: "ce" },
+  { bannerIds: ["np", "ce", "lt", "ltg"], tickets: { normal: 3, lucky: 2, luckyG: 2 }, targets: ["special-catseye", "catamin-b", "lil-cat", "superfeline", "10k-xp"], baseBannerId: "np" },
+  { bannerIds: ["cf", "ce", "lt"], tickets: { normal: 4, lucky: 3, luckyG: 0 }, targets: ["cat-cpu", "speed-up", "100k-xp", "rare-catseye"], baseBannerId: "cf" },
+  { bannerIds: ["n", "ltg"], tickets: { normal: 4, lucky: 0, luckyG: 4 }, targets: ["catamin-a", "catamin-b", "cat-energy", "study"], baseBannerId: "n" },
+  { bannerIds: ["lt", "ltg"], tickets: { normal: 0, lucky: 4, luckyG: 3 }, targets: ["30k-xp", "10k-xp", "catamin-c", "100k-xp-beta"], baseBannerId: "" },
+  // Several normal-ticket banners: here the base banner and switches decide ties.
+  { bannerIds: ["n", "np", "ce", "lt"], tickets: { normal: 5, lucky: 1, luckyG: 0 }, targets: ["rare-catseye", "super-rare-catseye", "superfeline"], baseBannerId: "np" },
+  { bannerIds: ["np", "cf", "ce"], tickets: { normal: 6, lucky: 0, luckyG: 0 }, targets: ["special-catseye", "cat-cpu", "100k-xp"], baseBannerId: "cf" },
+  // No base banner ("Any"): just the fewest switches.
+  { bannerIds: ["n", "np", "cf", "lt"], tickets: { normal: 5, lucky: 1, luckyG: 0 }, targets: ["cat-cpu", "superfeline", "speed-up"], baseBannerId: "" },
 ];
 const SEEDS = [3141592653, 2718281828, 12345, 987654321, 42, 4000000007];
 
-test("search finds the brute-force optimum (appearances, then normal, then lucky + lucky G)", () => {
+test("search finds the brute-force optimum, including the easiest plan among equals", () => {
   let compared = 0;
   for (const seed of SEEDS) {
     for (const [i, c] of CASES.entries()) {
@@ -64,15 +78,41 @@ test("search finds the brute-force optimum (appearances, then normal, then lucky
         }
         const top = res.paths[0];
         assert.deepEqual(
-          [top.appearances, top.tickets.normal, top.tickets.lucky + top.tickets.luckyG],
-          [bf.s, bf.n, bf.l + bf.g],
+          [top.appearances, top.tickets.normal, top.tickets.lucky + top.tickets.luckyG, top.ease.offBase, top.ease.runs],
+          [bf.s, bf.n, bf.l + bf.g, bf.offBase, bf.runs],
           where
         );
         compared++;
       }
     }
   }
-  assert.ok(compared > 60, `compared ${compared} cases`);
+  assert.ok(compared > 90, `compared ${compared} cases`);
+});
+
+test("filler draws stay on your base banner", () => {
+  // Same input, two base banners: the best paths are equally good, but each
+  // keeps its filler on the chosen banner.
+  const input = { seed: 2718281828, lastItem: "", bannerIds: ["n", "np", "lt"], tickets: { normal: 12, lucky: 1 }, targets: ["treasure-radar"] };
+  for (const base of ["n", "np"]) {
+    const [p] = findPaths({ ...input, baseBannerId: base }).paths;
+    const normalDraws = p.steps.filter((s) => s.ticket === "normal");
+    assert.ok(normalDraws.length > 0, "needs some normal-ticket filler");
+    assert.ok(normalDraws.every((s) => s.banner === base), `base ${base}: ${p.steps.map((s) => s.banner).join(",")}`);
+    assert.equal(p.ease.offBase, 0);
+  }
+});
+
+test("a base banner keeps filler on it; without one the plan switches banners the least", () => {
+  const input = { seed: 3141592653, lastItem: "", bannerIds: ["n", "np", "ce", "lt"], tickets: { normal: 30, lucky: 3 }, targets: ["dark-catseye"] };
+  const [onBase] = findPaths({ ...input, baseBannerId: "np" }).paths;
+  const [any] = findPaths({ ...input, baseBannerId: "" }).paths;
+  const offNp = (p) => p.steps.filter((s) => s.ticket === "normal" && s.banner !== "np").length;
+  const plan = (p) => p.steps.map((s) => s.banner).join(",");
+  // Equally good on items and tickets either way...
+  assert.deepEqual([any.appearances, any.tickets], [onBase.appearances, onBase.tickets]);
+  // ...but one stays on Normal+ more, the other switches banners less.
+  assert.ok(offNp(onBase) < offNp(any), `${plan(onBase)} vs ${plan(any)}`);
+  assert.ok(any.ease.runs < onBase.ease.runs, `${plan(onBase)} vs ${plan(any)}`);
 });
 
 test("every returned path re-simulates, respects each ticket budget, and ends on a target", () => {

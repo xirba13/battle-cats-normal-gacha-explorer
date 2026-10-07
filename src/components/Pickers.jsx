@@ -1,6 +1,6 @@
 import React from "react";
 import { BANNERS, TICKETS, bannerItems, itemName } from "../engine/banners.js";
-import { formatChance } from "../derive.js";
+import { baseBannerId, formatChance } from "../derive.js";
 
 export function TicketBadge({ kind }) {
   return <span className={`ticket-badge t-${kind}`}>{TICKETS[kind].short}</span>;
@@ -9,6 +9,7 @@ export function TicketBadge({ kind }) {
 export function BannerPicker({ st, update }) {
   const toggle = (id) =>
     update((s) => ({ banners: s.banners.includes(id) ? s.banners.filter((x) => x !== id) : [...s.banners, id] }));
+  const normalBanners = BANNERS.filter((b) => b.ticket === "normal" && st.banners.includes(b.id));
   return (
     <section className="panel">
       <h3><span className="step">1</span> Banners you can roll</h3>
@@ -24,6 +25,22 @@ export function BannerPicker({ st, update }) {
           );
         })}
       </div>
+      {normalBanners.length > 1 && (
+        <label className="base-pick">
+          Base banner for normal tickets
+          <select value={st.base === "any" ? "any" : baseBannerId(st)} onChange={(e) => update({ base: e.target.value })}>
+            {normalBanners.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+            <option value="any">Any — fewest banner switches</option>
+          </select>
+          <span className="muted small">
+            {st.base === "any"
+              ? "Plans switch banners as little as possible."
+              : "Draws that just move you forward stay on it; other banners only when that gets more items or saves tickets."}
+          </span>
+        </label>
+      )}
     </section>
   );
 }

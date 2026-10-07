@@ -2,7 +2,10 @@
 //
 // Ranking: most appearances (every copy counts — three Dark Catseyes = 3), then
 // fewest normal tickets, then fewest lucky + lucky G tickets combined. Each
-// banner spends only its own ticket kind (see banners.js).
+// banner spends only its own ticket kind (see banners.js). Among equally good
+// paths, the easiest to follow wins: the most normal-ticket draws on your base
+// banner (e.g. Normal+), then the fewest banner switches. Without a base banner
+// it's just the fewest switches.
 //
 // Positions only move forward, so the search sweeps seed states in order and
 // keeps, per (state, last-item key), the partial paths nobody beats on every
@@ -29,8 +32,28 @@ const BOUND_TABLE_LIMIT = 8_000_000;
 
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 
+// Easier plan first: fewer normal-ticket draws off the base banner (nb), then
+// fewer runs of same-banner draws (sg). With no base banner nb is just the
+// normal tickets used, already tied by then, so runs decide.
+const byEase = (a, b) => a.nb - b.nb || a.sg - b.sg;
+
+// Can partial path `a` replace `b` (same state, last-item key and lucky /
+// lucky G usage) for every possible continuation? Strictly better appearances
+// or normal tickets always wins. On an exact tie it comes down to the plan:
+// a run only ends when the next draw changes banner, so a path ending on a
+// different banner may still save one switch later — then it needs a margin.
+// (`exact` off: just keep the easier one, so beam passes stay as lean as before.)
+function covers(a, b, exact) {
+  if (a.s < b.s || a.n > b.n) return false;
+  if (a.s > b.s || a.n < b.n) return true;
+  if (!exact || a.j === b.j) return byEase(a, b) <= 0;
+  return a.nb < b.nb || (a.nb === b.nb && a.sg < b.sg);
+}
 // Better first: more appearances, fewer normal tickets, fewer lucky + lucky G.
-const byRank = (a, b) => b.s - a.s || a.n - b.n || a.l + a.g - (b.l + b.g);
+// Beam passes pick partial paths by this alone (ease must never cost items).
+const byValue = (a, b) => b.s - a.s || a.n - b.n || a.l + a.g - (b.l + b.g);
+// Finished paths: the same, then the easier plan.
+const byRank = (a, b) => byValue(a, b) || byEase(a, b);
 // Alternative order for beam diversity: save lucky tickets first.
 const byLuckyFirst = (a, b) => b.s - a.s || a.l + a.g - (b.l + b.g) || a.n - b.n;
 
@@ -57,7 +80,9 @@ export function prepare(input) {
   const Tcap = Math.min(T, (M >> 1) + 2); // more rolls than this can't fit in M
   const cur = banners.map((b) => TICKET_INDEX[b.ticket]);
   const bound = upperBound(track, M, Tcap, targets);
-  return { seed, lastItem, budget, banners, cur, targets, T, M, Tcap, bound, track, keyAt };
+  // Filler draws on normal tickets should stay on this banner when possible.
+  const base = banners.findIndex((b) => b.id === input.baseBannerId && b.ticket === "normal");
+  return { seed, lastItem, budget, banners, cur, targets, T, M, Tcap, bound, track, keyAt, base };
 }
 
 // bound(m, r): most appearances reachable from state m with r more rolls,
@@ -104,7 +129,8 @@ function upperBound(track, M, Tcap, targets) {
 // (state, key) — fast, not guaranteed optimal. floor > 0 drops partial paths
 // whose upper bound can't reach `floor` appearances.
 export function sweep(P, { beam = 0, floor = 0, deadline = Infinity, maxLabels = Infinity, now = Date.now } = {}) {
-  const { M, T, Tcap, bound, budget, cur, targets, track, keyAt } = P;
+  const { M, T, Tcap, bound, budget, cur, targets, track, keyAt, base } = P;
+  const exactEase = beam === 0; // exact switch counting only in the exact sweep
   const G1 = budget[2] + 1;
   const buckets = new Array(M).fill(null);
   let ends = [];
@@ -124,15 +150,16 @@ export function sweep(P, { beam = 0, floor = 0, deadline = Infinity, maxLabels =
       byCell.set(ci, [lab]);
       return;
     }
-    // Same (lucky, lucky G) usage: keep the (appearances, normal) Pareto front.
-    for (const o of list) if (o.s >= lab.s && o.n <= lab.n) return;
+    // Same (lucky, lucky G) usage: keep the (appearances, normal) Pareto front,
+    // and on exact ties the easiest plans (see covers).
+    for (const o of list) if (covers(o, lab, exactEase)) return;
     let w = 0;
-    for (const o of list) if (!(lab.s >= o.s && lab.n <= o.n)) list[w++] = o;
+    for (const o of list) if (!covers(lab, o, exactEase)) list[w++] = o;
     list.length = w;
     list.push(lab);
   };
 
-  insert(0, keyAt(0, P.lastItem), { s: 0, n: 0, l: 0, g: 0, prev: null, m: -1, j: -1, rer: false, hit: false });
+  insert(0, keyAt(0, P.lastItem), { s: 0, n: 0, l: 0, g: 0, nb: 0, sg: 0, prev: null, m: -1, j: -1, rer: false, hit: false });
 
   let tick = 0;
   sweepLoop: for (let m = 0; m < M; m++) {
@@ -165,6 +192,8 @@ export function sweep(P, { beam = 0, floor = 0, deadline = Infinity, maxLabels =
             n: lab.n + (c === 0 ? 1 : 0),
             l: lab.l + (c === 1 ? 1 : 0),
             g: lab.g + (c === 2 ? 1 : 0),
+            nb: lab.nb + (c === 0 && j !== base ? 1 : 0),
+            sg: lab.sg + (j !== lab.j ? 1 : 0),
             prev: lab, m, j, rer: o.rerolled, hit,
           });
         }
@@ -178,7 +207,7 @@ export function sweep(P, { beam = 0, floor = 0, deadline = Infinity, maxLabels =
 // beam doesn't burn one ticket kind early and starve later targets.
 function pickBeam(labs, beam) {
   const half = beam >> 1;
-  const a = labs.slice().sort(byRank);
+  const a = labs.slice().sort(byValue);
   const b = labs.slice().sort(byLuckyFirst);
   const picked = new Set(a.slice(0, half));
   for (const x of b) {
@@ -236,6 +265,9 @@ function toPath(P, lab) {
   return {
     appearances: lab.s,
     tickets: { normal: lab.n, lucky: lab.l, luckyG: lab.g },
+    // How easy it is to follow: normal-ticket draws off the base banner, and
+    // the number of runs of same-banner draws.
+    ease: { offBase: lab.nb, runs: lab.sg },
     steps,
     end: { m: last.next, pos: positionLabel(last.next), seed: P.track.seeds[last.next], lastItem: last.item },
   };
@@ -310,4 +342,6 @@ export function findPaths(input, options = {}) {
   return { ...best, stats: stats({ labels: exact.created, phase: "capped" }) };
 }
 
-const toLabel = (p) => ({ s: p.appearances, n: p.tickets.normal, l: p.tickets.lucky, g: p.tickets.luckyG });
+const toLabel = (p) => ({
+  s: p.appearances, n: p.tickets.normal, l: p.tickets.lucky, g: p.tickets.luckyG, nb: p.ease.offBase, sg: p.ease.runs,
+});

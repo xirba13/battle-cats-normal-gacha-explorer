@@ -26,10 +26,16 @@ your inputs live in the page link — bookmark it to keep them.
    | Lucky Ticket | lucky tickets |
    | Lucky Ticket G | lucky tickets G |
 
+   With several normal-ticket banners, pick a **base banner** (e.g. Normal+):
+   draws that just move you forward stay on it, and other banners are used
+   only when that gets more items or saves tickets. **Any** gives the plan with
+   the fewest banner switches instead.
 2. **Items** — tick what you want (Dark Catseye, Catamin C, Epic Catfruit…).
 3. **Results** — every appearance of those items your tickets can reach (e.g.
-   `Dark Catseye: 22A, 56B, 105AR`), and the best paths. Pick a path to see
-   which appearances it gets and which it skips.
+   `Dark Catseye: 22A, 56B, 105AR`), and the best paths. Each path starts with
+   a short **plan** — how many draws on which banner, in order:
+   `10× Normal+ → 1× Lucky Ticket → 9× Normal+ → 1× Catseye 🎯 Dark Catseye (20A)`.
+   Pick a path to see which appearances it gets and which it skips.
 4. **Track table** — godfat/ampuri-style A/B tracks with the selected path
    highlighted, as deep as your tickets reach (each ticket kind takes up to
    9,999; all of them maxed is about 37,000 rows). Click an item to say "I
@@ -43,6 +49,8 @@ and last item and subtracts the tickets (Back undoes it).
 1. Most appearances (every copy counts — three Dark Catseyes = 3).
 2. Then fewest **normal** tickets.
 3. Then fewest **lucky + lucky G** tickets combined.
+4. Then the easiest plan to follow: most normal-ticket draws on your base
+   banner, then fewest banner switches. This never costs an item or a ticket.
 
 Paths end at their last wanted item. Dupe rerolls are followed **across
 banners** (your last item carries over), which can open or close whole stretches
@@ -89,7 +97,7 @@ phones:
 - The path search runs in a **Web Worker** and is **anytime**: a quick answer
   in a fraction of a second, then a proven-optimal one. On a 2018 desktop CPU,
   realistic inputs (one or two ticket kinds, even 200 normal + 50 lucky) are
-  proven optimal in under 0.25 s.
+  proven optimal in under 0.3 s.
 - With large amounts of **all three** ticket kinds at once, or thousands of
   tickets, the exact search stops at a time/size limit (~3 s) and says so; the
   paths shown are still valid, usually optimal, just not proven.

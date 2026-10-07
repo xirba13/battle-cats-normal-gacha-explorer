@@ -11,12 +11,13 @@ test("state round-trips through the hash", () => {
     lastItem: "cat-energy",
     tickets: { normal: 30, lucky: 10, luckyG: 2 },
     banners: ["ce", "lt"],
+    base: "ce",
     items: ["dark-catseye", "100k-xp-beta"],
     depth: 200,
     tab: "help",
   };
   const hash = buildHash(st);
-  assert.equal(hash, "#s=3141592653&last=cat-energy&t=30.10.2&b=ce,lt&i=dark-catseye,100k-xp-beta&d=200&tab=help");
+  assert.equal(hash, "#s=3141592653&last=cat-energy&t=30.10.2&b=ce,lt&base=ce&i=dark-catseye,100k-xp-beta&d=200&tab=help");
   assert.deepEqual(parseHash(hash), st);
 });
 
@@ -34,6 +35,15 @@ test("junk is dropped instead of breaking the page", () => {
   assert.deepEqual(st.items, ["dark-catseye"]);
   assert.equal(st.depth, "auto");
   assert.equal(st.tab, "tracker");
+});
+
+test("the base banner must be a normal-ticket banner, or 'any'", () => {
+  assert.equal(parseHash("#base=np").base, "np");
+  assert.equal(parseHash("#base=any").base, "any");
+  assert.equal(buildHash({ ...emptyState(), base: "any" }), "#t=0.0.0&base=any");
+  assert.equal(parseHash("#base=lt").base, ""); // lucky tickets have their own banner
+  assert.equal(parseHash("#base=__proto__").base, "");
+  assert.equal(parseHash("#base=nope").base, "");
 });
 
 test("JavaScript's built-in object keys aren't accepted as items or banners", () => {

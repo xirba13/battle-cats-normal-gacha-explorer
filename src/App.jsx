@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ITEMS, itemName } from "./engine/banners.js";
 import { positionLabel } from "./engine/track.js";
 import { buildHash, parseHash } from "./urlstate.js";
-import { deriveTracker, findAppearances, itemChances, ticketText } from "./derive.js";
+import { baseBannerId, deriveTracker, findAppearances, itemChances, ticketText } from "./derive.js";
 import { useSearch } from "./useSearch.js";
 import Controls from "./components/Controls.jsx";
 import { BannerPicker, ItemPicker } from "./components/Pickers.jsx";
@@ -109,8 +109,8 @@ function Tracker({ st, update, setNotice }) {
     if (!derived || !targets.size) return null;
     const bannerIds = derived.banners.filter((_, j) => derived.usable[j]).map((b) => b.id);
     if (!bannerIds.length) return null;
-    return { seed: Number(seed), lastItem: st.lastItem, bannerIds, tickets, targets: st.items };
-  }, [derived, targets, seed, st.lastItem, tickets, st.items]);
+    return { seed: Number(seed), lastItem: st.lastItem, bannerIds, tickets, targets: st.items, baseBannerId: baseBannerId(st) };
+  }, [derived, targets, seed, st.lastItem, tickets, st.items, st.banners, st.base]);
   const search = useSearch(searchInput);
   const [pathIndex, setPathIndex] = useState(0);
   useEffect(() => setPathIndex(0), [search.key]);

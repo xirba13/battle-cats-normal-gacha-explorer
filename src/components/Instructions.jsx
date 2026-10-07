@@ -35,11 +35,18 @@ export default function Instructions() {
       <h3>Using the tracker</h3>
       <ol>
         <li>Enter your <b>seed</b>, <b>last item</b> and how many <b>tickets</b> of each kind you have.</li>
-        <li><b>Banners:</b> tick the ones that are open in-game right now.</li>
+        <li>
+          <b>Banners:</b> tick the ones that are open in-game right now. With more than one normal-ticket banner,
+          pick your <b>base banner</b> (e.g. Normal+): draws that just move you forward stay on it, and other banners
+          are used only when that gets you more items or saves tickets. Pick <b>“Any”</b> instead for the plan with
+          the fewest banner switches.
+        </li>
         <li><b>Items:</b> tick what you want (e.g. Dark Catseye, Uber Rare Catseye, Catamin C).</li>
         <li>
           <b>Results:</b> where each item appears within reach of your tickets (e.g. 22A, 56B, 105AR), and the best
-          paths. Pick a path to see which appearances it gets (green) and which it skips (struck through).
+          paths. Each path starts with a short <b>plan</b> — how many draws to do on each banner, in order, e.g.
+          “10× Normal+ → 1× Lucky Ticket → 9× Normal+ → 1× Catseye 🎯 Dark Catseye”. Pick a path to see which
+          appearances it gets (green) and which it skips (struck through).
         </li>
         <li><b>Track table:</b> the selected path is shaded; the striped position is where you'll be after it.</li>
         <li>
@@ -52,6 +59,10 @@ export default function Instructions() {
       <ul>
         <li><b>Most appearances wins</b> — every copy counts (three Dark Catseyes = 3).</li>
         <li>Ties go to the path using <b>fewer normal tickets</b>, then fewer lucky + lucky G tickets combined.</li>
+        <li>
+          If paths are still equal, the <b>easiest to follow</b> wins: the most normal-ticket draws on your base
+          banner, then the fewest banner switches. This never costs you an item or a ticket.
+        </li>
         <li>A path ends at its last wanted item; it never spends tickets after that.</li>
         <li>
           Usually the result is proven optimal in well under a second. With lots of all three ticket kinds at once,

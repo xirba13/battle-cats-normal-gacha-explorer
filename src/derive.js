@@ -66,6 +66,34 @@ export function ticketText(t) {
   return parts.length ? `${parts.join(" + ")} ticket${t.normal + t.lucky + t.luckyG === 1 ? "" : "s"}` : "no tickets";
 }
 
+// The banner filler draws on normal tickets should use: none for "any" (just
+// the fewest switches), else the one you picked if it's selected, else Normal+,
+// else Normal, else the first normal-ticket banner.
+export function baseBannerId(st) {
+  if (st.base === "any") return "";
+  const normal = BANNERS.filter((b) => b.ticket === "normal" && st.banners.includes(b.id)).map((b) => b.id);
+  if (normal.includes(st.base)) return st.base;
+  return ["np", "n"].find((id) => normal.includes(id)) ?? normal[0] ?? "";
+}
+
+// The short plan: consecutive draws on the same banner as one run, e.g.
+// "Normal+ ×10 → Lucky Ticket ×1 → Normal+ ×9 → Catseye ×1". Each run keeps
+// its first/last step and the wanted items it collects.
+export function planRuns(steps) {
+  const runs = [];
+  for (const s of steps) {
+    const run = runs[runs.length - 1];
+    if (run && run.banner === s.banner) {
+      run.count++;
+      run.to = s;
+    } else {
+      runs.push({ banner: s.banner, ticket: s.ticket, count: 1, from: s, to: s, hits: [] });
+    }
+    if (s.hit) runs[runs.length - 1].hits.push(s);
+  }
+  return runs;
+}
+
 // Group a path's steps for display: plain rolls on the same banner collapse
 // into one line ("12A–15A · Lucky Ticket ×4"); hits and dupes stay separate.
 export function groupSteps(steps) {

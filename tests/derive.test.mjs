@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { deriveTracker, findAppearances } from "../src/derive.js";
+import { baseBannerId, deriveTracker, findAppearances, planRuns } from "../src/derive.js";
 import { MAX_ROWS } from "../src/engine/track.js";
 import { emptyState } from "../src/urlstate.js";
 
@@ -39,4 +39,32 @@ test("a manual depth wins over auto, and every appearance is within the auto dep
   const apps = findAppearances(d, new Set(["dark-catseye", "uber-rare-catseye"]));
   assert.ok(apps.length > 0);
   for (const a of apps) assert.ok((a.m >> 1) + 1 <= d.rows, `appearance at row ${(a.m >> 1) + 1} beyond ${d.rows}`);
+});
+
+test("base banner: none for 'any', your pick if it's selected, else Normal+, Normal, or the first normal-ticket banner", () => {
+  const base = (banners, pick = "") => baseBannerId({ ...emptyState(), banners, base: pick });
+  assert.equal(base(["np", "ce", "lt"]), "np");
+  assert.equal(base(["n", "ce"]), "n");
+  assert.equal(base(["cf", "ce"]), "cf");
+  assert.equal(base(["np", "ce"], "ce"), "ce");
+  assert.equal(base(["np"], "ce"), "np"); // picked banner isn't selected
+  assert.equal(base(["lt", "ltg"]), ""); // no normal-ticket banner at all
+  assert.equal(base(["np", "ce"], "any"), ""); // fewest switches, no base
+});
+
+test("the plan groups consecutive draws on the same banner", () => {
+  const step = (banner, ticket, pos, hit = false) => ({ banner, ticket, pos, hit, item: hit ? "dark-catseye" : "cat" });
+  const steps = [
+    step("np", "normal", "1A"), step("np", "normal", "2A"),
+    step("lt", "lucky", "3A"),
+    step("np", "normal", "4A"),
+    step("ce", "normal", "5A", true),
+  ];
+  const runs = planRuns(steps);
+  assert.deepEqual(runs.map((r) => `${r.count}x${r.banner}`), ["2xnp", "1xlt", "1xnp", "1xce"]);
+  assert.equal(runs[0].from.pos, "1A");
+  assert.equal(runs[0].to.pos, "2A");
+  assert.equal(runs[1].ticket, "lucky");
+  assert.deepEqual(runs[3].hits.map((h) => h.pos), ["5A"]);
+  assert.deepEqual(planRuns([]), []);
 });

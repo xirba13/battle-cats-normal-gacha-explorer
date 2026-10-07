@@ -2,7 +2,7 @@
 // last item, tickets, banners, wanted items and the open tab live in the URL
 // hash, so bookmarking or sharing the link keeps everything. Nothing is stored
 // anywhere else. Ids are [a-z0-9-] so the hash stays readable, e.g.
-//   #s=2718281828&last=cat-energy&t=30.10.0&b=ce,lt&i=dark-catseye,uber-rare-catseye
+//   #s=2718281828&last=cat-energy&t=30.10.0&b=np,ce,lt&base=np&i=dark-catseye
 
 import { BANNERS, BANNER_BY_ID, ITEMS, TICKET_KEYS } from "./engine/banners.js";
 
@@ -16,6 +16,7 @@ export function emptyState() {
     lastItem: "",
     tickets: { normal: 0, lucky: 0, luckyG: 0 },
     banners: [],
+    base: "", // banner for filler draws on normal tickets ("" = default, "any" = fewest switches)
     items: [],
     depth: "auto",
     tab: "tracker",
@@ -45,6 +46,8 @@ export function parseHash(hash) {
     if (Number.isFinite(n) && n >= 0) st.tickets[k] = Math.min(n, MAX_TICKETS);
   });
   st.banners = bannerOrder(list(p.get("b")).filter((id) => known(BANNER_BY_ID, id)));
+  const base = p.get("base") || "";
+  if (base === "any" || (known(BANNER_BY_ID, base) && BANNER_BY_ID[base].ticket === "normal")) st.base = base;
   st.items = list(p.get("i")).filter((id) => known(ITEMS, id));
   const d = Number(p.get("d"));
   if (DEPTHS.includes(d)) st.depth = d;
@@ -59,6 +62,7 @@ export function buildHash(st) {
   if (st.lastItem) parts.push(`last=${st.lastItem}`);
   parts.push(`t=${TICKET_KEYS.map((k) => st.tickets[k] || 0).join(".")}`);
   if (st.banners.length) parts.push(`b=${bannerOrder(st.banners).join(",")}`);
+  if (st.base) parts.push(`base=${st.base}`);
   if (st.items.length) parts.push(`i=${st.items.join(",")}`);
   if (st.depth !== "auto") parts.push(`d=${st.depth}`);
   if (st.tab !== "tracker") parts.push(`tab=${st.tab}`);

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { BANNER_BY_ID, itemName } from "../engine/banners.js";
+import { BANNER_BY_ID, TICKETS, itemName } from "../engine/banners.js";
 import { positionLabel } from "../engine/track.js";
-import { groupSteps, ticketText } from "../derive.js";
+import { groupSteps, planRuns, ticketText } from "../derive.js";
 
 // "Dark Catseye ×3: 13A · 56B · 105AR" — green = this path gets it, struck =
 // this path passes it without taking it.
@@ -93,6 +93,51 @@ export function PathList({ search, pathIndex, setPathIndex, onFollow, ampuriUrl 
   );
 }
 
+// The short plan at the top of a path: how many draws on each banner, in
+// order — "10× Normal+ → 1× Lucky Ticket → 9× Normal+ → 1× Catseye 🎯".
+const SHOW_RUNS = 12;
+
+function Plan({ path }) {
+  const runs = planRuns(path.steps);
+  const [all, setAll] = useState(false);
+  const shown = all ? runs : runs.slice(0, SHOW_RUNS);
+  const range = (r) => (r.count > 1 ? `${r.from.pos}–${r.to.pos}` : r.from.pos);
+  return (
+    <div className="plan">
+      <span className="plan-label">Plan <span className="plan-hint">— roll in this order</span></span>
+      {shown.map((r, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <span className="plan-arrow" aria-hidden="true">→</span>}
+          <span
+            className={`run t-${r.ticket}`}
+            title={`${r.count} draw${r.count === 1 ? "" : "s"} on ${BANNER_BY_ID[r.banner].name} with ${TICKETS[r.ticket].label.toLowerCase()}, ${range(r)}`}
+          >
+            <b>{r.count}×</b> {BANNER_BY_ID[r.banner].name}
+            {r.hits.length > 0 && (
+              <span className="run-hits">
+                🎯 {r.hits.length <= 2
+                  ? r.hits.map((h) => `${itemName(h.item)} (${h.pos})`).join(", ")
+                  : `${r.hits.length} items`}
+              </span>
+            )}
+          </span>
+        </React.Fragment>
+      ))}
+      {runs.length > SHOW_RUNS && (
+        <button
+          className="small link"
+          onClick={(e) => {
+            e.stopPropagation();
+            setAll((v) => !v);
+          }}
+        >
+          {all ? "show fewer" : `+${runs.length - SHOW_RUNS} more`}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PathCard({ path, rank, selected, onSelect, onFollow, ampuriUrl }) {
   const hits = path.steps.filter((s) => s.hit);
   // Steps render only when opened, and long hit lists start collapsed: long
@@ -119,6 +164,7 @@ function PathCard({ path, rank, selected, onSelect, onFollow, ampuriUrl }) {
           I followed this path
         </button>
       </div>
+      <Plan path={path} />
       <div className="path-hits">
         {shownHits.map((s) => (
           <span key={`${s.m}.${s.banner}`} className="hit">

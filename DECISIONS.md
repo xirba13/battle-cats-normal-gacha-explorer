@@ -72,6 +72,19 @@ were taken from the rare explorer. The two may be merged later under one design.
 - **Ranking (user decision):** most appearances (each copy counts), then fewest
   normal tickets, then fewest lucky + lucky G combined. Paths end at their last
   wanted item. Each banner spends only its own ticket kind.
+- **Easiest plan among equals.** Remaining ties go to the most normal-ticket
+  draws on the base banner (the user picks it; default Normal+), then the fewest
+  runs of same-banner draws. "Any" drops the base, leaving the fewest switches.
+  Both orders were compared on 8 seeds × 4 banner setups: base-first put 184
+  normal draws off Normal+ against 480, but needed 246 runs against 100 (e.g.
+  `N+×3 CE×3 N+×8 CE×1 LT×1 N+×1 CE×2 N+×1 CE×1` vs `CE×15 LT×1 CE×5`). The
+  user's own example keeps filler on Normal+, so base-first is the default and
+  "Any" is the other choice. Exactness needs one rule: a draw only starts a new
+  run if it changes banner, so two partial paths ending on different banners
+  are compared with a one-run margin (`covers`) — the search still matches the
+  brute force on every tie. Beam passes pick partial paths by items/tickets
+  alone and skip that margin: letting ease steer them cost items (9,999×3 fell
+  from 6,213 to 5,098; 200/50/50 from 64 to 63).
 - **Exact sweep.** Seed positions only move forward, so it's a DAG: sweep states
   in order keeping, per (state, last-item key), the partial paths not beaten on
   every count. Only the last item matters, and only when it equals a reroll-tier
@@ -94,12 +107,13 @@ were taken from the rare explorer. The two may be merged later under one design.
   past 8M entries (~16 MB) it falls back to "unlimited rolls from here, capped by
   the rolls left" — looser but linear. Beam widths shrink (down to 2) for very
   deep inputs so the first answer stays quick.
-- **Measured (Ryzen 7 2700X, `node scripts/bench.mjs`, seed 3141592653):**
-  Catseye+Lucky 30/10: 12 ms; 4 banners 100/30: 74 ms; 200 normal/50 lucky:
-  0.19 s; all six 50/15/15: 0.23 s; Catseye only, 1500 normal: 60 ms — all
-  proven optimal. All six 100/30/30 and 200/50/50: capped at ~0.6–1 s; 4 banners
-  1500/300: first answer 0.33 s, capped at ~2.7 s; 9,999 of every kind: first
-  answer 0.73 s, capped at ~3.4 s. On the earlier seed, uncapped runs confirmed
+- **Measured (Ryzen 7 2700X, `node scripts/bench.mjs`, seed 3141592653, base
+  Normal+ where picked):** Catseye+Lucky 30/10: 15 ms; 4 banners 100/30: 97 ms;
+  200 normal/50 lucky: 0.26 s; all six 50/15/15: 0.28 s; Catseye only, 1500
+  normal: 58 ms — all proven optimal. All six 100/30/30 and 200/50/50: capped
+  at ~0.8–1.2 s; 4 banners 1500/300: first answer 0.36 s, capped at ~3 s; 9,999
+  of every kind: first answer 0.79 s, capped at ~3.3 s. Same items and tickets
+  as before the plan tie-breaks in every case. On the earlier seed, uncapped runs confirmed
   the capped 100/30/30 and 200/50/50 answers were the true optima. The
   200/50/50 case completes within a 64 MB JS heap.
 - **Safety nets:** every returned path is re-simulated from scratch
@@ -147,7 +161,7 @@ were taken from the rare explorer. The two may be merged later under one design.
 - **Measuring note:** the Long Tasks API reports nothing in a hidden tab (it
   missed a deliberate 150 ms block in the hidden preview pane), which made an
   earlier "no task over 50 ms" claim unreliable. Use timer-gap probes instead.
-- **State** lives in the URL hash (`#s=&last=&t=n.l.g&b=&i=&d=&tab=`); actions
+- **State** lives in the URL hash (`#s=&last=&t=n.l.g&b=&base=&i=&d=&tab=`); actions
   that change the seed (follow a path, click an item) push a history entry so
   Back undoes them.
 

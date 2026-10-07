@@ -1,7 +1,9 @@
 // Path-search benchmark (not part of `pnpm test`):  node scripts/bench.mjs
 // Prints how fast the quick answer arrives, whether the final one is proven
 // optimal within the time budget, and how many partial paths it explored.
+// Base banner as the app defaults it (Normal+ when it's picked).
 import { findPaths } from "../src/engine/search.js";
+import { baseBannerId } from "../src/derive.js";
 
 const SEED = 3141592653;
 const SCENARIOS = [
@@ -22,7 +24,7 @@ for (const [name, bannerIds, tickets, targets] of SCENARIOS) {
   let quickMs = null;
   let quick = null;
   const res = findPaths(
-    { seed: SEED, lastItem: "cat-energy", bannerIds, tickets, targets },
+    { seed: SEED, lastItem: "cat-energy", bannerIds, tickets, targets, baseBannerId: baseBannerId({ banners: bannerIds, base: "" }) },
     {
       timeBudgetMs: budget,
       onUpdate: (r) => {

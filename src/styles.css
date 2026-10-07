@@ -180,6 +180,8 @@ button.link:hover { background: none; }
   user-select: none;
 }
 .chip.on { border-color: var(--teal); background: var(--teal-soft); }
+.base-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 10px; font-size: 13px; }
+.base-pick select { padding: 3px 6px; border: 1px solid var(--line); border-radius: 4px; font-size: 13px; }
 
 /* ---- Item picker ---- */
 .item-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px 18px; }
@@ -225,6 +227,40 @@ button.link:hover { background: none; }
 .path-head .cost { color: #555; }
 .path-head .spacer { flex: 1; }
 .on-table { font-size: 12px; color: var(--teal-dark); }
+/* The plan is boxed so it's the first thing you read on a path. */
+.plan {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 6px;
+  padding: 8px 10px 10px;
+  border: 1px solid #a9d3d3;
+  border-radius: 8px;
+  background: var(--teal-soft);
+  font-size: 13px;
+}
+.path.selected .plan { border-color: var(--teal); }
+.plan-label {
+  flex-basis: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--teal-dark);
+}
+.plan-hint { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.plan .run {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--t);
+  border-radius: 5px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+/* The item names may wrap, so a run that collects two items still fits a phone. */
+.plan .run-hits { margin-left: 6px; color: var(--target); font-weight: 600; white-space: normal; }
+.plan-arrow { color: var(--muted); }
 .unverified { color: #b01f1f; font-weight: 700; }
 .path-hits { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 2px; font-size: 13px; }
 .path details { margin-top: 4px; font-size: 13px; }
