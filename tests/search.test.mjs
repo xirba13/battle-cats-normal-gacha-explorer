@@ -55,10 +55,10 @@ const CASES = [
   { bannerIds: ["n", "ltg"], tickets: { normal: 4, lucky: 0, luckyG: 4 }, targets: ["catamin-a", "catamin-b", "cat-energy", "study"], baseBannerId: "n" },
   { bannerIds: ["lt", "ltg"], tickets: { normal: 0, lucky: 4, luckyG: 3 }, targets: ["30k-xp", "10k-xp", "catamin-c", "100k-xp-beta"], baseBannerId: "" },
   // Several normal-ticket banners: here the base banner and switches decide ties.
-  { bannerIds: ["n", "np", "ce", "lt"], tickets: { normal: 5, lucky: 1, luckyG: 0 }, targets: ["rare-catseye", "super-rare-catseye", "superfeline"], baseBannerId: "np" },
+  { bannerIds: ["np", "cf", "ce", "lt"], tickets: { normal: 5, lucky: 1, luckyG: 0 }, targets: ["rare-catseye", "super-rare-catseye", "superfeline"], baseBannerId: "np" },
   { bannerIds: ["np", "cf", "ce"], tickets: { normal: 6, lucky: 0, luckyG: 0 }, targets: ["special-catseye", "cat-cpu", "100k-xp"], baseBannerId: "cf" },
   // No base banner ("Any"): just the fewest switches.
-  { bannerIds: ["n", "np", "cf", "lt"], tickets: { normal: 5, lucky: 1, luckyG: 0 }, targets: ["cat-cpu", "superfeline", "speed-up"], baseBannerId: "" },
+  { bannerIds: ["n", "cf", "ce", "lt"], tickets: { normal: 5, lucky: 1, luckyG: 0 }, targets: ["cat-cpu", "study", "speed-up"], baseBannerId: "" },
 ];
 const SEEDS = [3141592653, 2718281828, 12345, 987654321, 42, 4000000007];
 
@@ -92,8 +92,8 @@ test("search finds the brute-force optimum, including the easiest plan among equ
 test("filler draws stay on your base banner", () => {
   // Same input, two base banners: the best paths are equally good, but each
   // keeps its filler on the chosen banner.
-  const input = { seed: 2718281828, lastItem: "", bannerIds: ["n", "np", "lt"], tickets: { normal: 12, lucky: 1 }, targets: ["treasure-radar"] };
-  for (const base of ["n", "np"]) {
+  const input = { seed: 2718281828, lastItem: "", bannerIds: ["np", "ce", "lt"], tickets: { normal: 12, lucky: 1 }, targets: ["lil-gross-cat"] };
+  for (const base of ["np", "ce"]) {
     const [p] = findPaths({ ...input, baseBannerId: base }).paths;
     const normalDraws = p.steps.filter((s) => s.ticket === "normal");
     assert.ok(normalDraws.length > 0, "needs some normal-ticket filler");
@@ -103,7 +103,7 @@ test("filler draws stay on your base banner", () => {
 });
 
 test("a base banner keeps filler on it; without one the plan switches banners the least", () => {
-  const input = { seed: 3141592653, lastItem: "", bannerIds: ["n", "np", "ce", "lt"], tickets: { normal: 30, lucky: 3 }, targets: ["dark-catseye"] };
+  const input = { seed: 3141592653, lastItem: "", bannerIds: ["np", "cf", "ce", "lt"], tickets: { normal: 30, lucky: 3 }, targets: ["dark-catseye"] };
   const [onBase] = findPaths({ ...input, baseBannerId: "np" }).paths;
   const [any] = findPaths({ ...input, baseBannerId: "" }).paths;
   const offNp = (p) => p.steps.filter((s) => s.ticket === "normal" && s.banner !== "np").length;
@@ -186,7 +186,7 @@ test("the end seed is the seed right after the last roll (auto seed-fill)", () =
 
 test("a capped search still returns verified paths, flagged as not proven optimal", () => {
   const input = {
-    seed: 3141592653, lastItem: "cat-energy", bannerIds: ["n", "np", "cf", "ce", "lt", "ltg"],
+    seed: 3141592653, lastItem: "cat-energy", bannerIds: ["np", "cf", "ce", "lt", "ltg"],
     tickets: { normal: 120, lucky: 40, luckyG: 40 }, targets: ["dark-catseye", "uber-rare-catseye", "catamin-c", "1m-xp"],
   };
   const res = findPaths(input, { maxLabels: 2000 });
@@ -205,7 +205,7 @@ test("paths go past row 999 when the tickets do", () => {
 
 test("the biggest inputs stay within the time budget", () => {
   const input = {
-    seed: 2718281828, lastItem: "", bannerIds: ["n", "np", "cf", "ce", "lt", "ltg"],
+    seed: 2718281828, lastItem: "", bannerIds: ["np", "cf", "ce", "lt", "ltg"],
     tickets: { normal: 9999, lucky: 9999, luckyG: 9999 }, targets: ["dark-catseye", "catamin-c", "1m-xp"],
   };
   const t0 = performance.now();

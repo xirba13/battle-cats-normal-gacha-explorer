@@ -27,6 +27,14 @@ const list = (s) => [...new Set((s || "").split(",").filter(Boolean))];
 const known = (table, id) => Object.hasOwn(table, id); // own keys only, never Object.prototype's
 const bannerOrder = (ids) => BANNERS.map((b) => b.id).filter((id) => ids.includes(id));
 
+// Normal and Normal+ can't both be picked (user decision): ticking one unticks
+// the other, and a link with both keeps Normal+.
+export function toggleBanner(banners, id) {
+  if (banners.includes(id)) return banners.filter((x) => x !== id);
+  const rival = id === "n" ? "np" : id === "np" ? "n" : "";
+  return [...banners.filter((x) => x !== rival), id];
+}
+
 export function parseSeed(text) {
   const digits = String(text ?? "").trim();
   if (!/^\d{1,10}$/.test(digits)) return "";
@@ -46,6 +54,7 @@ export function parseHash(hash) {
     if (Number.isFinite(n) && n >= 0) st.tickets[k] = Math.min(n, MAX_TICKETS);
   });
   st.banners = bannerOrder(list(p.get("b")).filter((id) => known(BANNER_BY_ID, id)));
+  if (st.banners.includes("np")) st.banners = st.banners.filter((id) => id !== "n"); // see toggleBanner
   const base = p.get("base") || "";
   if (base === "any" || (known(BANNER_BY_ID, base) && BANNER_BY_ID[base].ticket === "normal")) st.base = base;
   st.items = list(p.get("i")).filter((id) => known(ITEMS, id));

@@ -102,32 +102,36 @@ were taken from the rare explorer. The two may be merged later under one design.
 - **Depth.** Each ticket kind accepts up to 9,999. The search covers every
   position the tickets can reach: it builds the track for the worst case (5 seed
   states per roll), runs the reachability, and cuts at the deepest reachable
-  state. 9,999 of every kind reaches ~37,000 rows, under the 40,000-row safety
+  state. 9,999 of every kind reaches ~36,000 rows, under the 40,000-row safety
   cap (`MAX_ROWS`). The UB[state][rolls left] table grows as depth × tickets, so
   past 8M entries (~16 MB) it falls back to "unlimited rolls from here, capped by
   the rolls left" — looser but linear. Beam widths shrink (down to 2) for very
   deep inputs so the first answer stays quick.
 - **Measured (Ryzen 7 2700X, `node scripts/bench.mjs`, seed 3141592653, base
-  Normal+ where picked):** Catseye+Lucky 30/10: 15 ms; 4 banners 100/30: 97 ms;
-  200 normal/50 lucky: 0.26 s; all six 50/15/15: 0.28 s; Catseye only, 1500
-  normal: 58 ms — all proven optimal. All six 100/30/30 and 200/50/50: capped
-  at ~0.8–1.2 s; 4 banners 1500/300: first answer 0.36 s, capped at ~3 s; 9,999
-  of every kind: first answer 0.79 s, capped at ~3.3 s. Same items and tickets
-  as before the plan tie-breaks in every case. On the earlier seed, uncapped runs confirmed
-  the capped 100/30/30 and 200/50/50 answers were the true optima. The
-  200/50/50 case completes within a 64 MB JS heap.
+  Normal+ where picked):** Catseye+Lucky 30/10: 14 ms; 4 banners 100/30: 90 ms;
+  200 normal/50 lucky: 0.22 s; all five 50/15/15: 0.20 s; Catseye only, 1500
+  normal: 65 ms — all proven optimal. All five 100/30/30 and 200/50/50: capped
+  at ~0.7–1 s; 4 banners 1500/300: first answer 0.36 s, capped at ~2.8 s; 9,999
+  of every kind: first answer 0.64 s, capped at ~3.4 s. ("All five" = every
+  banner you can pick together, Normal+ standing in for Normal.) Earlier,
+  with all six banners: the plan tie-breaks changed no item or ticket count,
+  uncapped runs on the earlier seed confirmed the capped 100/30/30 and
+  200/50/50 answers were the true optima, and 200/50/50 completed within a
+  64 MB JS heap.
 - **Safety nets:** every returned path is re-simulated from scratch
   (`verifyPath`); tests compare the search with a brute force over every roll
-  sequence for small budgets (6 seeds × 5 banner/ticket mixes × 3 last items).
+  sequence for small budgets (6 seeds × 8 banner/ticket mixes × 3 last items).
 
 ## UI
 
+- **Normal or Normal+, not both (user decision).** Ticking one unticks the
+  other (`toggleBanner`); a link with both keeps Normal+.
 - **Appearances** use reachability with the *total* tickets of the selected
   banners' kinds (ticket split relaxed) — "could some roll sequence get here?".
   Whether they can be collected together within each budget is the paths' job.
 - **Table depth "All my tickets"** = the deepest position the tickets your
   banners can use actually reach — no 999 cap (safety cap 40,000 rows; 9,999 of
-  every kind reaches ~37,000). A first version guessed ~1.1 rows per ticket, but
+  every kind reaches ~36,000). A first version guessed ~1.1 rows per ticket, but
   chained dupes reach much deeper with many banners (row 373 with 300 tickets;
   row 1,691 with 1,500). Tickets of a kind no picked banner uses don't count
   (they can't move the seed there).
@@ -156,8 +160,9 @@ were taken from the rare explorer. The two may be merged later under one design.
   gap between 10 ms timer ticks (idle baseline 16 ms) while switching inputs and
   scrolling the whole table: 45/10 tickets 23 ms, 200/50/50 47 ms, 1,200/300
   39 ms — no visible freeze. 9,999 of every kind: one ~0.35 s block while the
-  37,000-row track is built (a few times longer on slow phones); moving that
-  build to a worker is the next step if it matters.
+  track is built (measured at 37,000 rows with all six banners; five reach
+  ~36,000), a few times longer on slow phones; moving that build to a worker
+  is the next step if it matters.
 - **Measuring note:** the Long Tasks API reports nothing in a hidden tab (it
   missed a deliberate 150 ms block in the hidden preview pane), which made an
   earlier "no task over 50 ms" claim unreliable. Use timer-gap probes instead.

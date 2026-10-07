@@ -1,14 +1,14 @@
 import React from "react";
 import { BANNERS, TICKETS, bannerItems, itemName } from "../engine/banners.js";
 import { baseBannerId, formatChance } from "../derive.js";
+import { toggleBanner } from "../urlstate.js";
 
 export function TicketBadge({ kind }) {
   return <span className={`ticket-badge t-${kind}`}>{TICKETS[kind].short}</span>;
 }
 
 export function BannerPicker({ st, update }) {
-  const toggle = (id) =>
-    update((s) => ({ banners: s.banners.includes(id) ? s.banners.filter((x) => x !== id) : [...s.banners, id] }));
+  const toggle = (id) => update((s) => ({ banners: toggleBanner(s.banners, id) }));
   const normalBanners = BANNERS.filter((b) => b.ticket === "normal" && st.banners.includes(b.id));
   return (
     <section className="panel">
@@ -25,6 +25,7 @@ export function BannerPicker({ st, update }) {
           );
         })}
       </div>
+      <p className="muted small">Normal and Normal+ can't both be picked: ticking one unticks the other.</p>
       {normalBanners.length > 1 && (
         <label className="base-pick">
           Base banner for normal tickets

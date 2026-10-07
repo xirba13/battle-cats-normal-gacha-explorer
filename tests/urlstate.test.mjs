@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { buildHash, clampTickets, emptyState, parseHash, parseSeed } from "../src/urlstate.js";
+import { buildHash, clampTickets, emptyState, parseHash, parseSeed, toggleBanner } from "../src/urlstate.js";
 
 test("state round-trips through the hash", () => {
   const st = {
@@ -35,6 +35,15 @@ test("junk is dropped instead of breaking the page", () => {
   assert.deepEqual(st.items, ["dark-catseye"]);
   assert.equal(st.depth, "auto");
   assert.equal(st.tab, "tracker");
+});
+
+test("Normal and Normal+ can't both be picked", () => {
+  assert.deepEqual(toggleBanner(["n", "ce"], "np"), ["ce", "np"]); // ticking one unticks the other
+  assert.deepEqual(toggleBanner(["np", "lt"], "n"), ["lt", "n"]);
+  assert.deepEqual(toggleBanner(["np", "ce"], "np"), ["ce"]); // unticking works as before
+  assert.deepEqual(toggleBanner(["n", "ce"], "lt"), ["n", "ce", "lt"]); // other banners don't care
+  assert.deepEqual(parseHash("#b=n,np,ce").banners, ["np", "ce"]); // an old link with both keeps Normal+
+  assert.deepEqual(parseHash("#b=n,ce").banners, ["n", "ce"]);
 });
 
 test("the base banner must be a normal-ticket banner, or 'any'", () => {

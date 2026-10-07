@@ -92,7 +92,7 @@ function useDebounced(value, ms) {
 }
 
 function Tracker({ st, update, setNotice }) {
-  // Typing a seed or ticket count rebuilds the whole track (37,000 rows at
+  // Typing a seed or ticket count rebuilds the whole track (36,000 rows at
   // 9,999 of every ticket), so wait until the typing pauses.
   const seed = useDebounced(st.seed, 150);
   const tickets = useDebounced(st.tickets, 150);

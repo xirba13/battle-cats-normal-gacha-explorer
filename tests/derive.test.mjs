@@ -15,9 +15,9 @@ test("auto depth follows the tickets past 999 rows", () => {
   assert.equal(d.autoRows, d.rows);
 });
 
-test("9,999 of every ticket kind fits: about 37,000 rows, still under the safety cap", () => {
+test("9,999 of every ticket kind fits: about 36,000 rows, still under the safety cap", () => {
   const d = deriveTracker(state({
-    banners: ["n", "np", "cf", "ce", "lt", "ltg"],
+    banners: ["np", "cf", "ce", "lt", "ltg"], // every banner you can pick together
     tickets: { normal: 9999, lucky: 9999, luckyG: 9999 },
   }));
   assert.equal(d.T, 29997);

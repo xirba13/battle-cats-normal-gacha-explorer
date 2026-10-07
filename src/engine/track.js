@@ -10,7 +10,7 @@
 import { advance, seedSequence } from "./rng.js";
 
 // Safety cap only: tables and searches go as deep as your tickets reach, and
-// 9,999 of every ticket kind reaches about row 37,100. The table renders just
+// 9,999 of every ticket kind reaches about row 36,300. The table renders just
 // the rows on screen, so depth costs little in the page.
 export const MAX_ROWS = 40000;
 
@@ -26,7 +26,7 @@ export function stateOf(label) {
 }
 
 // Cells are interned: a cell is fully described by its tier, slot and dupe
-// result, so each combination is one shared, frozen object and a 37,000-row
+// result, so each combination is one shared, frozen object and a 36,000-row
 // track costs one pointer per cell instead of an object each.
 const tierCells = new WeakMap(); // tier -> cells indexed by (slot, reroll slot, extra)
 function internCell(tier, slot, rerollSlot, extra) {

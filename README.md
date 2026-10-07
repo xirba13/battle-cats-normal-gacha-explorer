@@ -17,8 +17,8 @@ your inputs live in the page link — bookmark it to keep them.
 
 ## What it does
 
-1. **Banners** — tick the banners open in-game. They all share one seed, and
-   each uses one kind of ticket:
+1. **Banners** — tick the banners open in-game (Normal or Normal+, not both).
+   They all share one seed, and each uses one kind of ticket:
 
    | Banner | Ticket |
    | --- | --- |
@@ -38,7 +38,7 @@ your inputs live in the page link — bookmark it to keep them.
    Pick a path to see which appearances it gets and which it skips.
 4. **Track table** — godfat/ampuri-style A/B tracks with the selected path
    highlighted, as deep as your tickets reach (each ticket kind takes up to
-   9,999; all of them maxed is about 37,000 rows). Click an item to say "I
+   9,999; all of them maxed is about 36,000 rows). Click an item to say "I
    rolled up to here".
 
 After rolling a path in-game, **“I followed this path”** fills in your new seed
@@ -104,7 +104,7 @@ phones:
 - The track table only draws the rows near the screen. Measured in the
   production build, the page never stalls longer than ~50 ms for realistic
   inputs (even 1,200 normal + 300 lucky). The one exception is 9,999 of every
-  ticket kind: building that ~37,000-row track blocks the page once for ~0.35 s
+  ticket kind: building that ~36,000-row track blocks the page once for ~0.35 s
   on a desktop (longer on a slow phone).
 
 ## Security

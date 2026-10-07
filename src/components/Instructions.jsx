@@ -36,10 +36,10 @@ export default function Instructions() {
       <ol>
         <li>Enter your <b>seed</b>, <b>last item</b> and how many <b>tickets</b> of each kind you have.</li>
         <li>
-          <b>Banners:</b> tick the ones that are open in-game right now. With more than one normal-ticket banner,
-          pick your <b>base banner</b> (e.g. Normal+): draws that just move you forward stay on it, and other banners
-          are used only when that gets you more items or saves tickets. Pick <b>“Any”</b> instead for the plan with
-          the fewest banner switches.
+          <b>Banners:</b> tick the ones that are open in-game right now (Normal or Normal+, not both). With more
+          than one normal-ticket banner, pick your <b>base banner</b> (e.g. Normal+): draws that just move you
+          forward stay on it, and other banners are used only when that gets you more items or saves tickets.
+          Pick <b>“Any”</b> instead for the plan with the fewest banner switches.
         </li>
         <li><b>Items:</b> tick what you want (e.g. Dark Catseye, Uber Rare Catseye, Catamin C).</li>
         <li>
