@@ -15,8 +15,9 @@
 // With all three ticket kinds and large budgets the exact sweep can take
 // seconds-to-minutes, so findPaths is "anytime": quick beam passes first (fast,
 // usually already optimal), then the exact sweep within a time/size budget. The
-// result says whether it is proven optimal. Every returned path is re-simulated
-// from scratch before it is shown (same safety net as the rare-gacha explorer).
+// result says whether it is proven optimal. The final paths then get a clean-up
+// pass (polish), and every returned path is re-simulated from scratch before it
+// is shown (same safety net as the rare-gacha explorer).
 
 import { BANNER_BY_ID } from "./banners.js";
 import { advance } from "./rng.js";
@@ -303,9 +304,207 @@ export function verifyPath(input, path) {
   return { ok: errors.length === 0, errors };
 }
 
-function result(P, input, ends, exact, stats) {
-  const paths = rankPaths(P, ends, stats.topK).map((p) => ({ ...p, verified: verifyPath(input, p).ok }));
+function result(P, input, ends, exact, stats, verify = true) {
+  const paths = rankPaths(P, ends, stats.topK).map((p) => (verify ? { ...p, verified: verifyPath(input, p).ok } : p));
   return { paths, exact, stats };
+}
+
+// ---- Clean-up --------------------------------------------------------------
+// When the search hits its limit (thousands of tickets), its paths have the
+// right items and tickets but not always the easiest plan: say a Catseye detour
+// that could be a Lucky Ticket draw, while an earlier lucky draw could have been
+// on the base banner. polish() moves single draws to another banner when every
+// other draw stays exactly as it was (it lands in the same place and the next
+// draw rolls the same item, so the rest of the path can't change). A change is
+// kept only if it makes the path strictly better by the ranking: same wanted
+// items, then fewer normal tickets, fewer lucky + lucky G, fewer normal draws
+// off the base banner, fewer banner switches. Two kinds of change:
+//   - one draw to another banner (a detour onto the base banner, a normal draw
+//     onto Lucky Ticket while lucky tickets are left, ...);
+//   - a pair that trades ticket kinds: a normal draw becomes a lucky one and a
+//     lucky draw elsewhere a normal one (a Catseye detour becomes a Lucky Ticket
+//     draw, and an earlier lucky draw moves to Normal+).
+// A proven-optimal best path has nothing left to fix.
+
+// A move's change to the ranking key, packed into one small integer that sorts
+// the same way: normal tickets (-1..1; lucky + lucky G always moves the other
+// way), then normal draws off the base banner (-1..1), then banner runs (-2..2).
+// Anything below NO_CHANGE is an improvement.
+const moveCode = (dn, dOff, dRuns) => (dn + 1) * 15 + (dOff + 1) * 5 + dRuns + 2;
+const NO_CHANGE = moveCode(0, 0, 0);
+
+function polish(P, path) {
+  const { track, banners, cur, base, targets, budget, lastItem } = P;
+  const steps = path.steps.slice();
+  const N = steps.length;
+  const J = new Int8Array(N); // banner index of each draw
+  const used = [0, 0, 0];
+  for (let i = 0; i < N; i++) {
+    J[i] = banners.findIndex((b) => b.id === steps[i].banner);
+    used[cur[J[i]]]++;
+  }
+  const offBase = (j) => (cur[j] === 0 && j !== base ? 1 : 0);
+  // Banner changes around draw i if it were on banner j.
+  const edges = (i, j) => (i > 0 && J[i - 1] !== j ? 1 : 0) + (i + 1 < N && J[i + 1] !== j ? 1 : 0);
+
+  // What draw i gives on banner j, or null if that would change any other draw.
+  const tryMove = (i, j) => {
+    const s = steps[i];
+    if (s.hit || J[i] === j) return null;
+    const o = outcome(track.cells[s.m][j], i ? steps[i - 1].item : lastItem);
+    if (s.m + o.advance !== s.next || targets.has(o.item)) return null;
+    const t = steps[i + 1];
+    if (t) {
+      const r = outcome(track.cells[t.m][J[i + 1]], o.item);
+      if (r.item !== t.item || r.rerolled !== t.rerolled) return null;
+    }
+    return o;
+  };
+  // Best move of draw i onto a banner of ticket kind `kind`, or (kind -1) onto
+  // any banner whose ticket kind still has tickets left.
+  const bestMove = (i, kind) => {
+    const j0 = J[i];
+    let best = null;
+    for (let j = 0; j < banners.length; j++) {
+      const k = cur[j];
+      if (kind >= 0 ? k !== kind : k !== cur[j0] && used[k] >= budget[k]) continue;
+      const o = tryMove(i, j);
+      if (!o) continue;
+      const code = moveCode((k === 0) - (cur[j0] === 0), offBase(j) - offBase(j0), edges(i, j) - edges(i, j0));
+      if (!best || code < best.code) best = { i, j, o, code };
+    }
+    return best;
+  };
+
+  // Draws next to a change get looked at again.
+  let changes = 0;
+  let touched = [];
+  const queue = [];
+  const queued = new Uint8Array(N);
+  const touch = (i) => {
+    for (let k = Math.max(0, i - 1); k <= Math.min(N - 1, i + 1); k++) {
+      touched.push(k);
+      if (!queued[k]) {
+        queued[k] = 1;
+        queue.push(k);
+      }
+    }
+  };
+  const apply = ({ i, j, o }) => {
+    const b = banners[j];
+    used[cur[J[i]]]--;
+    used[cur[j]]++;
+    J[i] = j;
+    steps[i] = { ...steps[i], banner: b.id, ticket: b.ticket, item: o.item, rerolled: o.rerolled, pos: positionLabel(steps[i].m, o.rerolled) };
+    changes++;
+    touch(i);
+  };
+  const singles = () => {
+    while (queue.length) {
+      const i = queue.pop();
+      queued[i] = 0;
+      const m = bestMove(i, -1);
+      if (m && m.code < NO_CHANGE) apply(m);
+    }
+  };
+  for (let i = 0; i < N; i++) {
+    queued[i] = 1;
+    queue.push(i);
+  }
+  singles();
+
+  // Pairs, per lucky ticket kind K: a K draw moves to a normal banner and a
+  // normal draw (2+ steps away, so neither changes what the other relies on)
+  // moves to a K banner. Ticket totals stay the same, so only [off base, runs]
+  // change, each by a small integer: candidate moves sit in buckets by that
+  // change (code % 15), and finding the best pair never rescans the path.
+  for (const K of [1, 2]) {
+    if (!cur.includes(K)) continue;
+    // sides[0]: K draws -> a normal banner; sides[1]: normal draws -> a K banner.
+    const sides = [[K, 0], [0, K]].map(([from, to]) => ({
+      from, to, move: new Array(N).fill(null), buckets: Array.from({ length: 15 }, () => new Set()),
+    }));
+    const refresh = (i) => {
+      for (const side of sides) {
+        const old = side.move[i];
+        if (old) side.buckets[old.code % 15].delete(i);
+        const m = cur[J[i]] === side.from ? bestMove(i, side.to) : null;
+        side.move[i] = m;
+        if (m) side.buckets[m.code % 15].add(i);
+      }
+    };
+    for (let i = 0; i < N; i++) refresh(i);
+    touched = [];
+    for (let guard = 0; guard < 4 * N; guard++) {
+      const pair = bestPair(sides[0].buckets, sides[1].buckets);
+      if (!pair) break;
+      const [mx, my] = [sides[0].move[pair[0]], sides[1].move[pair[1]]];
+      apply(mx);
+      apply(my);
+      singles();
+      for (const k of touched) refresh(k);
+      touched = [];
+    }
+  }
+
+  if (!changes) return path;
+  let runs = 0;
+  let offBaseDraws = 0;
+  for (let i = 0; i < N; i++) {
+    if (i === 0 || J[i - 1] !== J[i]) runs++;
+    offBaseDraws += offBase(J[i]);
+  }
+  return {
+    ...path,
+    steps,
+    tickets: { normal: used[0], lucky: used[1], luckyG: used[2] },
+    ease: { offBase: offBaseDraws, runs },
+  };
+}
+
+// The best improving pair [x, y] from two sides' buckets (bucket = (off base
+// change + 1) * 5 + runs change + 2): 2+ draws apart, smallest combined change.
+// Null if no pair helps.
+function bestPair(xb, yb) {
+  let best = null;
+  for (let bx = 0; bx < 15; bx++) {
+    if (!xb[bx].size) continue;
+    for (let by = 0; by < 15; by++) {
+      if (!yb[by].size) continue;
+      const off = Math.floor(bx / 5) + Math.floor(by / 5) - 2;
+      const runs = (bx % 5) + (by % 5) - 4;
+      if (off > 0 || (off === 0 && runs >= 0)) continue; // no better than now
+      if (best && (off > best.off || (off === best.off && runs >= best.runs))) continue;
+      const pair = farApart(xb[bx], yb[by]);
+      if (pair) best = { pair, off, runs };
+    }
+  }
+  return best && best.pair;
+}
+
+// Some x in X and y in Y at least 2 draws apart (a few of each are enough).
+function farApart(X, Y) {
+  let n = 0;
+  for (const x of X) {
+    let m = 0;
+    for (const y of Y) {
+      if (Math.abs(x - y) >= 2) return [x, y];
+      if (++m === 4) break;
+    }
+    if (++n === 4) break;
+  }
+  return null;
+}
+
+// Polish the shown paths, re-check the changed (or never checked) ones from
+// scratch, and re-rank: a polished path can overtake another.
+function cleanUp(P, input, paths) {
+  return paths
+    .map((p) => {
+      const q = polish(P, p);
+      return q === p && p.verified !== undefined ? p : { ...q, verified: verifyPath(input, q).ok };
+    })
+    .sort((a, b) => byRank(toLabel(a), toLabel(b)));
 }
 
 // Anytime search. onUpdate(result) fires after the quick pass (and the wide
@@ -338,8 +537,12 @@ export function findPaths(input, options = {}) {
 
   const floor = best.paths.length ? best.paths[0].appearances : 0;
   const exact = sweep(P, { floor, deadline, maxLabels, now });
-  if (exact.completed) return result(P, input, exact.ends, true, stats({ labels: exact.created, phase: "exact" }));
-  return { ...best, stats: stats({ labels: exact.created, phase: "capped" }) };
+  // The clean-up runs once, on the answer shown last, and checks what it
+  // returns (options.polish: false skips it).
+  const polishing = options.polish !== false;
+  const found = exact.completed ? result(P, input, exact.ends, true, stats({}), !polishing) : best;
+  const paths = polishing ? cleanUp(P, input, found.paths) : found.paths;
+  return { paths, exact: exact.completed, stats: stats({ labels: exact.created, phase: exact.completed ? "exact" : "capped" }) };
 }
 
 const toLabel = (p) => ({

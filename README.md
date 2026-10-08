@@ -34,7 +34,10 @@ your inputs live in the page link — bookmark it to keep them.
 3. **Results** — every appearance of those items your tickets can reach (e.g.
    `Dark Catseye: 22A, 56B, 105AR`), and the best paths. Each path starts with
    a short **plan** — how many draws on which banner, in order:
-   `10× Normal+ → 1× Lucky Ticket → 9× Normal+ → 1× Catseye 🎯 Dark Catseye (20A)`.
+   `10× Normal+ → 1× Lucky Ticket → 9× Normal+ → 1× Catseye 🎯 Dark Catseye (20A)`,
+   and the **NP and Rare Tickets** its draws give, per selected banner (a cat
+   is 2 NP on Normal+ and 1 on Normal, a Li'l cat 1 NP on Lucky Ticket; every
+   5 base upgrades from Normal / Normal+ are a Rare Ticket).
    Pick a path to see which appearances it gets and which it skips.
 4. **Track table** — godfat/ampuri-style A/B tracks with the selected path
    highlighted, as deep as your tickets reach (each ticket kind takes up to
@@ -100,7 +103,10 @@ phones:
   proven optimal in under 0.3 s.
 - With large amounts of **all three** ticket kinds at once, or thousands of
   tickets, the exact search stops at a time/size limit (~3 s) and says so; the
-  paths shown are still valid, usually optimal, just not proven.
+  paths shown are still valid, usually optimal, just not proven. A clean-up
+  pass then swaps draws between banners where that keeps every item and ticket
+  count but makes the plan better by the ranking: e.g. a Catseye detour that a
+  lucky ticket can do instead, with an earlier lucky draw moving to Normal+.
 - The track table only draws the rows near the screen. Measured in the
   production build, the page never stalls longer than ~50 ms for realistic
   inputs (even 1,200 normal + 300 lucky). The one exception is 9,999 of every

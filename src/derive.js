@@ -1,6 +1,6 @@
 // What the tracker tab shows, derived from the saved state (pure functions).
 
-import { BANNERS, bannerItems } from "./engine/banners.js";
+import { BANNERS, BANNER_BY_ID, ITEMS, UPGRADES_PER_RARE_TICKET, bannerItems } from "./engine/banners.js";
 import { MAX_ROWS, buildTrack, cellReach, reachability } from "./engine/track.js";
 
 export function deriveTracker(st) {
@@ -64,6 +64,28 @@ export function ticketText(t) {
   if (t.lucky) parts.push(`${t.lucky} lucky`);
   if (t.luckyG) parts.push(`${t.luckyG} lucky G`);
   return parts.length ? `${parts.join(" + ")} ticket${t.normal + t.lucky + t.luckyG === 1 ? "" : "s"}` : "no tickets";
+}
+
+// What a path's draws give besides the items you picked, by where they come
+// from: Normal / Normal+ (a cat is 2 NP on Normal+, 1 on Normal; every 5 base
+// upgrades are a Rare Ticket) and Lucky Ticket (a Li'l cat is 1 NP).
+export function pathRewards(steps) {
+  const normal = { cats: 0, np: 0, upgrades: 0, rareTickets: 0 };
+  const lucky = { cats: 0, np: 0 };
+  for (const s of steps) {
+    const banner = BANNER_BY_ID[s.banner];
+    if (!banner?.npPerCat) continue;
+    const kind = ITEMS[s.item]?.kind;
+    const from = banner.ticket === "normal" ? normal : lucky;
+    if (kind === "cat") {
+      from.cats++;
+      from.np += banner.npPerCat;
+    } else if (kind === "upgrade") {
+      normal.upgrades++;
+    }
+  }
+  normal.rareTickets = Math.floor(normal.upgrades / UPGRADES_PER_RARE_TICKET);
+  return { normal, lucky };
 }
 
 // The banner filler draws on normal tickets should use: none for "any" (just

@@ -23,16 +23,22 @@ export const TICKETS = {
 };
 export const TICKET_KEYS = ["normal", "lucky", "luckyG"];
 
+// Some draws give more than the item: each cat is NP (npPerCat below: 1 on
+// Normal, 2 on Normal+, 1 for a Li'l cat on Lucky Ticket), and every 5 base
+// upgrades from Normal / Normal+ are a Rare Ticket.
 const BASIC_CATS = ["Cat", "Tank Cat", "Axe Cat", "Gross Cat", "Cow Cat", "Bird Cat", "Fish Cat", "Lizard Cat", "Titan Cat"];
+const LIL_CATS = ["Li'l Titan Cat", "Li'l Lizard Cat", "Li'l Fish Cat", "Li'l Bird Cat", "Li'l Cow Cat", "Li'l Gross Cat",
+  "Li'l Axe Cat", "Li'l Tank Cat", "Li'l Cat"];
+const CATS = [...BASIC_CATS, "Superfeline", ...LIL_CATS];
 const UPGRADES = ["Cat Cannon Attack", "Cat Cannon Charge", "Worker Cat Rate", "Worker Cat Wallet", "Base Defense", "Research", "Accounting", "Study", "Cat Energy"];
 
 const RAW_BANNERS = [
   {
-    id: "n", name: "Normal", ticket: "normal",
+    id: "n", name: "Normal", ticket: "normal", npPerCat: 1,
     tiers: [{ rarity: "common", rate: 10000, reroll: true, items: [...BASIC_CATS, ...UPGRADES] }],
   },
   {
-    id: "np", name: "Normal+", ticket: "normal",
+    id: "np", name: "Normal+", ticket: "normal", npPerCat: 2,
     tiers: [{ rarity: "common", rate: 10000, reroll: true, items: [...BASIC_CATS, "Superfeline", ...UPGRADES] }],
   },
   {
@@ -63,12 +69,11 @@ const RAW_BANNERS = [
     ],
   },
   {
-    id: "lt", name: "Lucky Ticket", ticket: "lucky",
+    id: "lt", name: "Lucky Ticket", ticket: "lucky", npPerCat: 1,
     tiers: [
       {
         rarity: "rare", rate: 7400, reroll: true,
-        items: ["Li'l Titan Cat", "Li'l Lizard Cat", "Li'l Fish Cat", "Li'l Bird Cat", "Li'l Cow Cat", "Li'l Gross Cat",
-          "Li'l Axe Cat", "Li'l Tank Cat", "Li'l Cat", "Speed Up", "Speed Up", "Speed Up", "Cat CPU", "Cat CPU",
+        items: [...LIL_CATS, "Speed Up", "Speed Up", "Speed Up", "Cat CPU", "Cat CPU",
           "10K XP", "10K XP", "10K XP", "30K XP", "30K XP", "30K XP"],
       },
       { rarity: "super", rate: 2100, reroll: false, items: ["Rich Cat", "Cat Jobs", "Sniper the Cat"] },
@@ -104,7 +109,7 @@ function finish(raw) {
     return { ...t, items: t.items.map(itemId), cum };
   });
   if (cum !== 10000) throw new Error(`${raw.id}: tier rates sum to ${cum}, expected 10000`);
-  return { id: raw.id, name: raw.name, ticket: raw.ticket, tiers, cum: tiers.map((t) => t.cum) };
+  return { id: raw.id, name: raw.name, ticket: raw.ticket, npPerCat: raw.npPerCat ?? 0, tiers, cum: tiers.map((t) => t.cum) };
 }
 
 export const BANNERS = RAW_BANNERS.map(finish);
@@ -112,13 +117,16 @@ export const BANNERS = RAW_BANNERS.map(finish);
 // "__proto__" are simply unknown instead of hitting Object.prototype.
 export const BANNER_BY_ID = Object.assign(Object.create(null), Object.fromEntries(BANNERS.map((b) => [b.id, b])));
 
-// Every distinct item: id -> { id, name, kind }.
+export const UPGRADES_PER_RARE_TICKET = 5;
+
+// Every distinct item: id -> { id, name, kind } (kind: "cat" / "upgrade" for
+// the Normal / Normal+ ones, "item" for everything else).
 export const ITEMS = Object.create(null);
 for (const raw of RAW_BANNERS) {
   for (const tier of raw.tiers) {
     for (const name of tier.items) {
       const id = itemId(name);
-      if (!ITEMS[id]) ITEMS[id] = { id, name, kind: UPGRADES.includes(name) ? "upgrade" : "item" };
+      if (!ITEMS[id]) ITEMS[id] = { id, name, kind: UPGRADES.includes(name) ? "upgrade" : CATS.includes(name) ? "cat" : "item" };
     }
   }
 }

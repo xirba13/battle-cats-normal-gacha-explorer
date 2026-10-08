@@ -45,10 +45,16 @@ export default function Instructions() {
         <li>
           <b>Results:</b> where each item appears within reach of your tickets (e.g. 22A, 56B, 105AR), and the best
           paths. Each path starts with a short <b>plan</b> — how many draws to do on each banner, in order, e.g.
-          “10× Normal+ → 1× Lucky Ticket → 9× Normal+ → 1× Catseye 🎯 Dark Catseye”. Pick a path to see which
-          appearances it gets (green) and which it skips (struck through).
+          “10× Normal+ → 1× Lucky Ticket → 9× Normal+ → 1× Catseye 🎯 Dark Catseye”. It also shows the{" "}
+          <b>NP and Rare Tickets</b> its draws give, for each selected banner that gives them: a cat is 2 NP on
+          Normal+ and 1 on Normal, a Li'l cat is 1 NP on Lucky Ticket, and every 5 base upgrades from Normal /
+          Normal+ are a Rare Ticket. Pick a path to see which appearances it gets (green) and which it skips (struck
+          through).
         </li>
-        <li><b>Track table:</b> the selected path is shaded; the striped position is where you'll be after it.</li>
+        <li>
+          <b>Track table:</b> the selected path is shaded (in a cell with a dupe line, just the result it gets); the
+          striped position is where you'll be after it.
+        </li>
         <li>
           Roll the path in-game, then click <b>“I followed this path”</b>: your seed and last item are filled in and
           the tickets are subtracted. Rolled something else? Click the item you got in the table to move there.
@@ -65,8 +71,10 @@ export default function Instructions() {
         </li>
         <li>A path ends at its last wanted item; it never spends tickets after that.</li>
         <li>
-          Usually the result is proven optimal in well under a second. With lots of all three ticket kinds at once,
-          the search stops after a few seconds and says so; the paths shown are still valid, just not proven best.
+          Usually the result is proven optimal in well under a second. With thousands of tickets, or lots of all
+          three kinds at once, the search stops after a few seconds and says so; the paths shown are still valid,
+          just not proven best. A clean-up pass then fixes what it can without touching your items or tickets, such
+          as a Catseye detour that a lucky ticket can do instead, so that draw goes to your base banner.
         </li>
       </ul>
 

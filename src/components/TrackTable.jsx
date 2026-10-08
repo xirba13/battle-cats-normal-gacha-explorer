@@ -212,14 +212,18 @@ function Cell({ m, j, v, banner, canonOnPath, dupeOnPath, targets, onRollTo }) {
   const { cell, jump, inReach } = v;
   const pos = positionLabel(m);
   const upgrade = ITEMS[cell.item]?.kind === "upgrade";
-  const cls = ["cell", `r-${cell.rarity}`, upgrade ? "upgrade" : "", inReach ? "" : "dim", canonOnPath ? "on-path" : ""];
+  // The path's result is shaded: the whole cell, or with a dupe line just the
+  // half the path gets (the item on top, or the dupe line).
+  const cls = ["cell", `r-${cell.rarity}`, upgrade ? "upgrade" : "", inReach ? "" : "dim", canonOnPath && !jump ? "on-path" : ""];
   const title = `${pos} ${banner.name}: ${itemName(cell.item)}` +
     (jump ? ` — if your previous item was ${itemName(cell.item)}, you get ${itemName(cell.reroll.item)} instead and jump to ${jump}` : "");
   return (
     <td className={cls.join(" ")} rowSpan={2} title={title}>
-      <button className={`item ${targets.has(cell.item) ? "target" : ""}`} onClick={() => onRollTo(m, j, false)}>
-        {itemName(cell.item)}
-      </button>
+      <div className={`main ${canonOnPath && jump ? "on-path" : ""}`}>
+        <button className={`item ${targets.has(cell.item) ? "target" : ""}`} onClick={() => onRollTo(m, j, false)}>
+          {itemName(cell.item)}
+        </button>
+      </div>
       {jump && (
         <div className={`dupe ${dupeOnPath ? "on-path" : ""}`}>
           <span className="dupe-tag">dupe</span>

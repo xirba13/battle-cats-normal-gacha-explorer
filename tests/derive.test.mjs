@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { baseBannerId, deriveTracker, findAppearances, planRuns } from "../src/derive.js";
+import { baseBannerId, deriveTracker, findAppearances, pathRewards, planRuns } from "../src/derive.js";
 import { MAX_ROWS } from "../src/engine/track.js";
 import { emptyState } from "../src/urlstate.js";
 
@@ -50,6 +50,22 @@ test("base banner: none for 'any', your pick if it's selected, else Normal+, Nor
   assert.equal(base(["np"], "ce"), "np"); // picked banner isn't selected
   assert.equal(base(["lt", "ltg"]), ""); // no normal-ticket banner at all
   assert.equal(base(["np", "ce"], "any"), ""); // fewest switches, no base
+});
+
+test("NP and Rare Tickets: a cat is 2 NP on Normal+, 1 on Normal, a Li'l cat 1 on Lucky Ticket; 5 base upgrades a Rare Ticket", () => {
+  const step = (banner, item) => ({ banner, item });
+  const upgrades = ["research", "study", "accounting", "cat-energy", "base-defense", "research", "worker-cat-rate"];
+  const steps = [
+    step("np", "cat"), step("np", "superfeline"), step("n", "tank-cat"), // 2 + 2 + 1 NP
+    ...upgrades.map((u, k) => step(k % 2 ? "n" : "np", u)), // 7 upgrades, from either banner
+    step("lt", "lil-cat"), step("lt", "lil-titan-cat"), step("lt", "speed-up"), // 1 + 1 NP; Speed Up isn't a cat
+    step("ce", "rare-catseye"), step("cf", "cat-cpu"), step("ltg", "catamin-a"), // these banners give neither
+  ];
+  assert.deepEqual(pathRewards(steps), {
+    normal: { cats: 3, np: 5, upgrades: 7, rareTickets: 1 },
+    lucky: { cats: 2, np: 2 },
+  });
+  assert.deepEqual(pathRewards([]), { normal: { cats: 0, np: 0, upgrades: 0, rareTickets: 0 }, lucky: { cats: 0, np: 0 } });
 });
 
 test("the plan groups consecutive draws on the same banner", () => {

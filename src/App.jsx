@@ -188,7 +188,14 @@ function Tracker({ st, update, setNotice }) {
               <h4>Where your items are <span className="muted small">— within reach of your {derived.T} ticket{derived.T === 1 ? "" : "s"}</span></h4>
               <Appearances appearances={appearances} banners={derived.banners} chances={chances} path={path} onJump={jumpTo} />
               <h4>Best paths</h4>
-              <PathList search={search} pathIndex={pathIndex} setPathIndex={setPathIndex} onFollow={followPath} ampuriUrl={ampuriUrl} />
+              <PathList
+                search={search}
+                banners={derived.banners}
+                pathIndex={pathIndex}
+                setPathIndex={setPathIndex}
+                onFollow={followPath}
+                ampuriUrl={ampuriUrl}
+              />
             </>
           )}
         </section>

@@ -225,6 +225,7 @@ button.link:hover { background: none; }
 .path-head .rank { font-weight: 700; color: var(--teal-dark); font-size: 15px; }
 .path-head .got { font-weight: 600; }
 .path-head .cost { color: #555; }
+.path-head .rewards { color: var(--teal-dark); font-size: 13px; }
 .path-head .spacer { flex: 1; }
 .on-table { font-size: 12px; color: var(--teal-dark); }
 /* The plan is boxed so it's the first thing you read on a path. */
@@ -323,6 +324,7 @@ table.track td.cell {
   overflow: hidden;
 }
 table.track td.cell.on-path,
+table.track .main.on-path,
 table.track .dupe.on-path { background-image: linear-gradient(#00000030, #00000030); }
 table.track td.cell.dim { opacity: 0.45; }
 table.track td.spacer { border: none; padding: 0; }

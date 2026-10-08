@@ -1,7 +1,7 @@
 import React, { useState } from "react";
-import { BANNER_BY_ID, TICKETS, itemName } from "../engine/banners.js";
+import { BANNER_BY_ID, TICKETS, UPGRADES_PER_RARE_TICKET, itemName } from "../engine/banners.js";
 import { positionLabel } from "../engine/track.js";
-import { groupSteps, planRuns, ticketText } from "../derive.js";
+import { groupSteps, pathRewards, planRuns, ticketText } from "../derive.js";
 
 // "Dark Catseye ×3: 13A · 56B · 105AR" — green = this path gets it, struck =
 // this path passes it without taking it.
@@ -64,7 +64,7 @@ function AppearanceRow({ item, list, banners, got, end, onJump }) {
   );
 }
 
-export function PathList({ search, pathIndex, setPathIndex, onFollow, ampuriUrl }) {
+export function PathList({ search, banners, pathIndex, setPathIndex, onFollow, ampuriUrl }) {
   const { status, result, error } = search;
   if (status === "error") return <p className="error">Search failed: {error}</p>;
   if (!result) return <p className="muted">{status === "searching" ? "Searching…" : ""}</p>;
@@ -87,6 +87,7 @@ export function PathList({ search, pathIndex, setPathIndex, onFollow, ampuriUrl 
           onSelect={() => setPathIndex(i)}
           onFollow={() => onFollow(p)}
           ampuriUrl={ampuriUrl}
+          banners={banners}
         />
       ))}
     </div>
@@ -138,7 +139,39 @@ function Plan({ path }) {
   );
 }
 
-function PathCard({ path, rank, selected, onSelect, onFollow, ampuriUrl }) {
+const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+// What the path's draws give on top of your items, for each selected banner
+// that gives something: "Normal+: +228 NP · 24 Rare Tickets", "Lucky Ticket: +37 NP".
+function Rewards({ steps, banners }) {
+  const { normal, lucky } = pathRewards(steps);
+  const normalBanner = banners.find((b) => b.ticket === "normal" && b.npPerCat); // Normal or Normal+, never both
+  const luckyBanner = banners.find((b) => b.ticket === "lucky" && b.npPerCat);
+  const left = normal.upgrades % UPGRADES_PER_RARE_TICKET;
+  return (
+    <>
+      {normalBanner && (
+        <span
+          className="rewards"
+          title={
+            `From the ${normalBanner.name} draws: ${plural(normal.cats, "cat")} (${normalBanner.npPerCat} NP each) and ` +
+            `${plural(normal.upgrades, "base upgrade")} (every ${UPGRADES_PER_RARE_TICKET} give a Rare Ticket` +
+            `${left ? `; the last ${left} ${left === 1 ? "counts" : "count"} toward the next one` : ""}).`
+          }
+        >
+          {normalBanner.name}: +{normal.np} NP · {plural(normal.rareTickets, "Rare Ticket")}
+        </span>
+      )}
+      {luckyBanner && (
+        <span className="rewards" title={`From the ${luckyBanner.name} draws: ${plural(lucky.cats, "Li'l cat")}, ${luckyBanner.npPerCat} NP each.`}>
+          {luckyBanner.name}: +{lucky.np} NP
+        </span>
+      )}
+    </>
+  );
+}
+
+function PathCard({ path, rank, selected, onSelect, onFollow, ampuriUrl, banners }) {
   const hits = path.steps.filter((s) => s.hit);
   // Steps render only when opened, and long hit lists start collapsed: long
   // paths × 10 cards is a lot of DOM.
@@ -151,6 +184,7 @@ function PathCard({ path, rank, selected, onSelect, onFollow, ampuriUrl }) {
         <span className="rank">#{rank}</span>
         <span className="got">🎯 {path.appearances} appearance{path.appearances === 1 ? "" : "s"}</span>
         <span className="cost">{ticketText(path.tickets)}</span>
+        <Rewards steps={path.steps} banners={banners} />
         {!path.verified && <span className="unverified">⚠ failed its re-check — don't follow</span>}
         <span className="spacer" />
         {selected ? <span className="on-table">shown on the table ↓</span> : <button className="small" onClick={onSelect}>Show on table</button>}

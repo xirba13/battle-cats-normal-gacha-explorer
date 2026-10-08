@@ -112,18 +112,49 @@ were taken from the rare explorer. The two may be merged later under one design.
   200 normal/50 lucky: 0.22 s; all five 50/15/15: 0.20 s; Catseye only, 1500
   normal: 65 ms — all proven optimal. All five 100/30/30 and 200/50/50: capped
   at ~0.7–1 s; 4 banners 1500/300: first answer 0.36 s, capped at ~2.8 s; 9,999
-  of every kind: first answer 0.64 s, capped at ~3.4 s. ("All five" = every
-  banner you can pick together, Normal+ standing in for Normal.) Earlier,
+  of every kind: first answer 0.64 s, capped at ~3.4 s, plus ~0.4 s of
+  clean-up. ("All five" = every banner you can pick together, Normal+ standing
+  in for Normal.) Earlier,
   with all six banners: the plan tie-breaks changed no item or ticket count,
   uncapped runs on the earlier seed confirmed the capped 100/30/30 and
   200/50/50 answers were the true optima, and 200/50/50 completed within a
   64 MB JS heap.
+- **Clean-up after the search (user feedback).** A player with ~9,999 normal
+  + ~1,700 lucky tickets saw lucky tickets spent in one block and many Catseye
+  draws that weren't Dark Catseyes ("detours"), and wanted more Normal+ pulls
+  (NP, Rare Tickets). Findings: over half the detours are deliberate dupe
+  rerolls that switch track; in proven-optimal paths none can be swapped; but
+  at that size the search is always capped, and ~10% of the detours could be
+  a Lucky Ticket draw, with an earlier lucky draw moving to Normal+ (same
+  items and tickets). So the final paths get a clean-up (`polish`): it moves
+  single draws to another banner when every other draw stays identical (same
+  landing, and the next draw rolls the same item), and keeps a change only if
+  the path gets strictly better by the ranking. Moves: one draw (a detour onto
+  the base banner, a normal draw onto a lucky banner while lucky tickets are
+  left, a swap that saves a switch), or a pair that trades ticket kinds (a
+  detour becomes a lucky draw, a lucky draw elsewhere goes to the base). Pair
+  candidates sit in buckets by their [off base, switches] change, so finding
+  the best pair never rescans the path. At ~9,999 / 1,700 it removed 174 of
+  1,736 detours: +184 NP and +16 Rare Tickets, ~6% more switches (fewer
+  off-base draws rank above fewer switches), ~0.15 s for 10 paths; ~0.4 s at
+  9,999 of every kind (10 paths of 30,000 draws). On proven-optimal paths it
+  changes nothing. A priority order of banners instead of the base banner was
+  considered: with the same ticket totals, "most Normal+ pulls" is exactly the
+  base-banner tie-break, and each lucky banner is the only one for its ticket
+  kind, so an order would only add Catfruit-vs-Catseye preferences.
 - **Safety nets:** every returned path is re-simulated from scratch
   (`verifyPath`); tests compare the search with a brute force over every roll
   sequence for small budgets (6 seeds × 8 banner/ticket mixes × 3 last items).
 
 ## UI
 
+- **NP and Rare Tickets (from the user):** on Normal / Normal+, each cat
+  (the basic cats and Superfeline) gives NP, 2 on Normal+ and 1 on Normal, and
+  every 5 base upgrades (any mix) give a Rare Ticket; on Lucky Ticket each Li'l
+  cat gives 1 NP. Each path shows one total per selected banner that gives
+  something (Normal or Normal+, and Lucky Ticket), even at 0 (`pathRewards`).
+  The Rare Ticket count assumes the counter starts at zero. They're shown, not
+  ranked on.
 - **Normal or Normal+, not both (user decision).** Ticking one unticks the
   other (`toggleBanner`); a link with both keeps Normal+.
 - **Appearances** use reachability with the *total* tickets of the selected

@@ -102,6 +102,23 @@ test("filler draws stay on your base banner", () => {
   }
 });
 
+test("when the search is capped, the clean-up keeps items and tickets and moves draws onto the base banner", () => {
+  // A clock that ticks once per check stops the search at the same point on
+  // every machine.
+  const ticks = () => {
+    let t = 0;
+    return () => t++;
+  };
+  const input = { seed: 2718281828, lastItem: "", bannerIds: ["np", "ce", "lt"], tickets: { normal: 3000, lucky: 1000 }, targets: ["dark-catseye"], baseBannerId: "np" };
+  const [raw] = findPaths(input, { timeBudgetMs: 200, now: ticks(), polish: false }).paths;
+  const res = findPaths(input, { timeBudgetMs: 200, now: ticks() });
+  const [clean] = res.paths;
+  assert.equal(res.exact, false);
+  assert.deepEqual([clean.appearances, clean.tickets], [raw.appearances, raw.tickets]);
+  assert.ok(clean.ease.offBase < raw.ease.offBase, `normal draws off Normal+: ${raw.ease.offBase} -> ${clean.ease.offBase}`);
+  assert.ok(res.paths.every((p) => p.verified));
+});
+
 test("a base banner keeps filler on it; without one the plan switches banners the least", () => {
   const input = { seed: 3141592653, lastItem: "", bannerIds: ["np", "cf", "ce", "lt"], tickets: { normal: 30, lucky: 3 }, targets: ["dark-catseye"] };
   const [onBase] = findPaths({ ...input, baseBannerId: "np" }).paths;
