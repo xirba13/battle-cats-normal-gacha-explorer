@@ -17,6 +17,7 @@ export function emptyState() {
     tickets: { normal: 0, lucky: 0, luckyG: 0 },
     banners: [],
     base: "", // banner for filler draws on normal tickets ("" = default, "any" = fewest switches)
+    save: "lucky", // tickets plans save first: "lucky" (and lucky G) or "normal"
     items: [],
     depth: "auto",
     tab: "tracker",
@@ -57,6 +58,7 @@ export function parseHash(hash) {
   if (st.banners.includes("np")) st.banners = st.banners.filter((id) => id !== "n"); // see toggleBanner
   const base = p.get("base") || "";
   if (base === "any" || (known(BANNER_BY_ID, base) && BANNER_BY_ID[base].ticket === "normal")) st.base = base;
+  if (p.get("save") === "normal") st.save = "normal";
   st.items = list(p.get("i")).filter((id) => known(ITEMS, id));
   const d = Number(p.get("d"));
   if (DEPTHS.includes(d)) st.depth = d;
@@ -72,6 +74,7 @@ export function buildHash(st) {
   parts.push(`t=${TICKET_KEYS.map((k) => st.tickets[k] || 0).join(".")}`);
   if (st.banners.length) parts.push(`b=${bannerOrder(st.banners).join(",")}`);
   if (st.base) parts.push(`base=${st.base}`);
+  if (st.save === "normal") parts.push("save=normal");
   if (st.items.length) parts.push(`i=${st.items.join(",")}`);
   if (st.depth !== "auto") parts.push(`d=${st.depth}`);
   if (st.tab !== "tracker") parts.push(`tab=${st.tab}`);

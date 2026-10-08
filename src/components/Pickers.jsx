@@ -10,6 +10,7 @@ export function TicketBadge({ kind }) {
 export function BannerPicker({ st, update }) {
   const toggle = (id) => update((s) => ({ banners: toggleBanner(s.banners, id) }));
   const normalBanners = BANNERS.filter((b) => b.ticket === "normal" && st.banners.includes(b.id));
+  const luckyBanners = BANNERS.filter((b) => b.ticket !== "normal" && st.banners.includes(b.id));
   return (
     <section className="panel">
       <h3><span className="step">1</span> Banners you can roll</h3>
@@ -39,6 +40,20 @@ export function BannerPicker({ st, update }) {
             {st.base === "any"
               ? "Plans switch banners as little as possible."
               : "Draws that just move you forward stay on it; other banners only when that gets more items or saves tickets."}
+          </span>
+        </label>
+      )}
+      {normalBanners.length > 0 && luckyBanners.length > 0 && (
+        <label className="base-pick">
+          Save first
+          <select value={st.save} onChange={(e) => update({ save: e.target.value })}>
+            <option value="lucky">Lucky tickets</option>
+            <option value="normal">Normal tickets</option>
+          </select>
+          <span className="muted small">
+            {st.save === "normal"
+              ? "Plans spend lucky tickets first, and normal tickets only where they're needed."
+              : "Plans spend normal tickets first, and lucky tickets only where they're needed."}
           </span>
         </label>
       )}

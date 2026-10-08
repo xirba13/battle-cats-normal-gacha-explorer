@@ -109,8 +109,11 @@ function Tracker({ st, update, setNotice }) {
     if (!derived || !targets.size) return null;
     const bannerIds = derived.banners.filter((_, j) => derived.usable[j]).map((b) => b.id);
     if (!bannerIds.length) return null;
-    return { seed: Number(seed), lastItem: st.lastItem, bannerIds, tickets, targets: st.items, baseBannerId: baseBannerId(st) };
-  }, [derived, targets, seed, st.lastItem, tickets, st.items, st.banners, st.base]);
+    return {
+      seed: Number(seed), lastItem: st.lastItem, bannerIds, tickets, targets: st.items,
+      baseBannerId: baseBannerId(st), saveTickets: st.save,
+    };
+  }, [derived, targets, seed, st.lastItem, tickets, st.items, st.banners, st.base, st.save]);
   const search = useSearch(searchInput);
   const [pathIndex, setPathIndex] = useState(0);
   useEffect(() => setPathIndex(0), [search.key]);

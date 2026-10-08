@@ -29,7 +29,9 @@ your inputs live in the page link — bookmark it to keep them.
    With several normal-ticket banners, pick a **base banner** (e.g. Normal+):
    draws that just move you forward stay on it, and other banners are used
    only when that gets more items or saves tickets. **Any** gives the plan with
-   the fewest banner switches instead.
+   the fewest banner switches instead. With both normal and lucky tickets,
+   **Save first** picks which kind plans keep: lucky tickets by default (normal
+   tickets are spent first), or normal tickets.
 2. **Items** — tick what you want (Dark Catseye, Catamin C, Epic Catfruit…).
 3. **Results** — every appearance of those items your tickets can reach (e.g.
    `Dark Catseye: 22A, 56B, 105AR`), and the best paths. Each path starts with
@@ -50,8 +52,9 @@ and last item and subtracts the tickets (Back undoes it).
 ### How paths are ranked
 
 1. Most appearances (every copy counts — three Dark Catseyes = 3).
-2. Then fewest **normal** tickets.
-3. Then fewest **lucky + lucky G** tickets combined.
+2. Then fewest tickets of the kind you **save first**: lucky + lucky G
+   combined by default, or normal tickets.
+3. Then fewest of the other kind.
 4. Then the easiest plan to follow: most normal-ticket draws on your base
    banner, then fewest banner switches. This never costs an item or a ticket.
 
@@ -104,9 +107,10 @@ phones:
 - With large amounts of **all three** ticket kinds at once, or thousands of
   tickets, the exact search stops at a time/size limit (~3 s) and says so; the
   paths shown are still valid, usually optimal, just not proven. A clean-up
-  pass then swaps draws between banners where that keeps every item and ticket
-  count but makes the plan better by the ranking: e.g. a Catseye detour that a
-  lucky ticket can do instead, with an earlier lucky draw moving to Normal+.
+  pass then moves draws between banners where that keeps every item and makes
+  the plan better by the ranking: e.g. spending normal tickets that were left
+  over instead of lucky ones, or a Catseye detour that a lucky ticket can do
+  instead, with an earlier lucky draw moving to Normal+.
 - The track table only draws the rows near the screen. Measured in the
   production build, the page never stalls longer than ~50 ms for realistic
   inputs (even 1,200 normal + 300 lucky). The one exception is 9,999 of every

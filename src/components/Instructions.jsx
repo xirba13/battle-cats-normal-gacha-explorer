@@ -39,7 +39,9 @@ export default function Instructions() {
           <b>Banners:</b> tick the ones that are open in-game right now (Normal or Normal+, not both). With more
           than one normal-ticket banner, pick your <b>base banner</b> (e.g. Normal+): draws that just move you
           forward stay on it, and other banners are used only when that gets you more items or saves tickets.
-          Pick <b>“Any”</b> instead for the plan with the fewest banner switches.
+          Pick <b>“Any”</b> instead for the plan with the fewest banner switches. With both normal and lucky
+          tickets, <b>Save first</b> picks which kind plans keep: lucky tickets by default (normal tickets get spent
+          first, mostly on your base banner), or normal tickets.
         </li>
         <li><b>Items:</b> tick what you want (e.g. Dark Catseye, Uber Rare Catseye, Catamin C).</li>
         <li>
@@ -64,7 +66,10 @@ export default function Instructions() {
       <h3>How paths are ranked</h3>
       <ul>
         <li><b>Most appearances wins</b> — every copy counts (three Dark Catseyes = 3).</li>
-        <li>Ties go to the path using <b>fewer normal tickets</b>, then fewer lucky + lucky G tickets combined.</li>
+        <li>
+          Ties go to the path that spends <b>fewer of the tickets you save first</b> (lucky + lucky G combined by
+          default, or normal tickets), then fewer of the other kind.
+        </li>
         <li>
           If paths are still equal, the <b>easiest to follow</b> wins: the most normal-ticket draws on your base
           banner, then the fewest banner switches. This never costs you an item or a ticket.
@@ -73,8 +78,9 @@ export default function Instructions() {
         <li>
           Usually the result is proven optimal in well under a second. With thousands of tickets, or lots of all
           three kinds at once, the search stops after a few seconds and says so; the paths shown are still valid,
-          just not proven best. A clean-up pass then fixes what it can without touching your items or tickets, such
-          as a Catseye detour that a lucky ticket can do instead, so that draw goes to your base banner.
+          just not proven best. A clean-up pass then fixes what it can without losing an item: it moves draws to
+          another banner when that saves tickets of the kind you're keeping, or puts more draws on your base banner
+          (say a Catseye detour that a lucky ticket can do instead).
         </li>
       </ul>
 

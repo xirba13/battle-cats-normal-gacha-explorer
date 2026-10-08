@@ -46,6 +46,15 @@ test("Normal and Normal+ can't both be picked", () => {
   assert.deepEqual(parseHash("#b=n,ce").banners, ["n", "ce"]);
 });
 
+test("plans save lucky tickets unless the link says save=normal", () => {
+  assert.equal(emptyState().save, "lucky");
+  assert.equal(parseHash("").save, "lucky");
+  assert.equal(parseHash("#save=normal").save, "normal");
+  assert.equal(parseHash("#save=whatever").save, "lucky");
+  assert.equal(buildHash({ ...emptyState(), save: "normal" }), "#t=0.0.0&save=normal");
+  assert.equal(buildHash(emptyState()), "#t=0.0.0"); // the default stays out of the link
+});
+
 test("the base banner must be a normal-ticket banner, or 'any'", () => {
   assert.equal(parseHash("#base=np").base, "np");
   assert.equal(parseHash("#base=any").base, "any");

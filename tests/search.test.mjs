@@ -9,10 +9,11 @@ import { advance } from "../src/engine/rng.js";
 import { outcome, positionLabel, rollCell } from "../src/engine/track.js";
 import { findPaths, verifyPath } from "../src/engine/search.js";
 
-// Best path over all roll sequences, ranked like the app: most appearances,
-// fewest normal, fewest lucky + lucky G, then the easiest plan — fewest
-// normal-ticket draws off the base banner, then fewest runs of same-banner draws.
-function bruteForce({ seed, lastItem, bannerIds, tickets, targets, baseBannerId }) {
+// Best path over all roll sequences, ranked like the app: most appearances, the
+// fewest tickets of the kind you save first (lucky + lucky G, or normal), then
+// of the other kind, then the easiest plan — fewest normal-ticket draws off the
+// base banner, then fewest runs of same-banner draws.
+function bruteForce({ seed, lastItem, bannerIds, tickets, targets, baseBannerId, saveTickets }) {
   const banners = bannerIds.map((id) => BANNER_BY_ID[id]);
   const wanted = new Set(targets);
   const seeds = [seed >>> 0];
@@ -20,7 +21,8 @@ function bruteForce({ seed, lastItem, bannerIds, tickets, targets, baseBannerId 
     while (seeds.length <= m) seeds.push(advance(seeds[seeds.length - 1]));
     return seeds[m];
   };
-  const key = (c) => [-c.s, c.n, c.l + c.g, c.offBase, c.runs];
+  const key = (c) =>
+    saveTickets === "normal" ? [-c.s, c.n, c.l + c.g, c.offBase, c.runs] : [-c.s, c.l + c.g, c.n, c.offBase, c.runs];
   const better = (a, b) => {
     if (!b) return true;
     const ka = key(a);
@@ -64,29 +66,45 @@ const SEEDS = [3141592653, 2718281828, 12345, 987654321, 42, 4000000007];
 
 test("search finds the brute-force optimum, including the easiest plan among equals", () => {
   let compared = 0;
-  for (const seed of SEEDS) {
-    for (const [i, c] of CASES.entries()) {
-      for (const lastItem of ["", "30k-xp", "catamin-a"]) {
-        const input = { seed, lastItem, ...c };
-        const bf = bruteForce(input);
-        const res = findPaths(input, { timeBudgetMs: 60_000 });
-        const where = `seed ${seed} case ${i} last '${lastItem}'`;
-        assert.equal(res.exact, true, where);
-        if (!bf) {
-          assert.equal(res.paths.length, 0, where);
-          continue;
+  const lastItems = ["", "30k-xp", "catamin-a"];
+  for (const saveTickets of ["lucky", "normal"]) {
+    for (const seed of SEEDS) {
+      for (const [i, c] of CASES.entries()) {
+        for (const lastItem of lastItems) {
+          const input = { seed, lastItem, ...c, saveTickets };
+          const bf = bruteForce(input);
+          const res = findPaths(input, { timeBudgetMs: 60_000 });
+          const where = `save ${saveTickets} seed ${seed} case ${i} last '${lastItem}'`;
+          assert.equal(res.exact, true, where);
+          if (!bf) {
+            assert.equal(res.paths.length, 0, where);
+            continue;
+          }
+          const top = res.paths[0];
+          assert.deepEqual(
+            [top.appearances, top.tickets.normal, top.tickets.lucky + top.tickets.luckyG, top.ease.offBase, top.ease.runs],
+            [bf.s, bf.n, bf.l + bf.g, bf.offBase, bf.runs],
+            where
+          );
+          compared++;
         }
-        const top = res.paths[0];
-        assert.deepEqual(
-          [top.appearances, top.tickets.normal, top.tickets.lucky + top.tickets.luckyG, top.ease.offBase, top.ease.runs],
-          [bf.s, bf.n, bf.l + bf.g, bf.offBase, bf.runs],
-          where
-        );
-        compared++;
       }
     }
   }
-  assert.ok(compared > 90, `compared ${compared} cases`);
+  assert.ok(compared > 180, `compared ${compared} cases`);
+});
+
+test("'Save first' picks which tickets a plan spends; lucky tickets are saved by default", () => {
+  const input = { seed: 2718281828, lastItem: "", bannerIds: ["np", "ce", "lt"], tickets: { normal: 10, lucky: 10 }, targets: ["dark-catseye"], baseBannerId: "np" };
+  const [saveLucky] = findPaths(input).paths;
+  const [saveNormal] = findPaths({ ...input, saveTickets: "normal" }).paths;
+  // The same Dark Catseye at 11B either way...
+  assert.deepEqual([saveLucky.appearances, saveLucky.steps.at(-1).pos], [1, "11B"]);
+  assert.deepEqual([saveNormal.appearances, saveNormal.steps.at(-1).pos], [1, "11B"]);
+  // ...on normal tickets (filler on Normal+, detours on Catseye), or on lucky ones.
+  assert.deepEqual(saveLucky.tickets, { normal: 10, lucky: 0, luckyG: 0 });
+  assert.ok(saveLucky.steps.some((s) => s.banner === "np"));
+  assert.deepEqual(saveNormal.tickets, { normal: 1, lucky: 10, luckyG: 0 });
 });
 
 test("filler draws stay on your base banner", () => {
@@ -102,20 +120,37 @@ test("filler draws stay on your base banner", () => {
   }
 });
 
+// A clock that ticks once per check stops a capped search at the same point on
+// every machine.
+const ticks = () => {
+  let t = 0;
+  return () => t++;
+};
+
 test("when the search is capped, the clean-up keeps items and tickets and moves draws onto the base banner", () => {
-  // A clock that ticks once per check stops the search at the same point on
-  // every machine.
-  const ticks = () => {
-    let t = 0;
-    return () => t++;
+  const input = {
+    seed: 2718281828, lastItem: "", bannerIds: ["np", "ce", "lt"], tickets: { normal: 3000, lucky: 1000 },
+    targets: ["dark-catseye"], baseBannerId: "np", saveTickets: "normal",
   };
-  const input = { seed: 2718281828, lastItem: "", bannerIds: ["np", "ce", "lt"], tickets: { normal: 3000, lucky: 1000 }, targets: ["dark-catseye"], baseBannerId: "np" };
   const [raw] = findPaths(input, { timeBudgetMs: 200, now: ticks(), polish: false }).paths;
   const res = findPaths(input, { timeBudgetMs: 200, now: ticks() });
   const [clean] = res.paths;
   assert.equal(res.exact, false);
   assert.deepEqual([clean.appearances, clean.tickets], [raw.appearances, raw.tickets]);
   assert.ok(clean.ease.offBase < raw.ease.offBase, `normal draws off Normal+: ${raw.ease.offBase} -> ${clean.ease.offBase}`);
+  assert.ok(res.paths.every((p) => p.verified));
+});
+
+test("when the search is capped, the clean-up spends normal tickets that are left before lucky ones", () => {
+  const input = { seed: 2718281828, lastItem: "", bannerIds: ["np", "ce", "lt"], tickets: { normal: 1000, lucky: 3000 }, targets: ["dark-catseye"], baseBannerId: "np" };
+  const [raw] = findPaths(input, { timeBudgetMs: 200, now: ticks(), polish: false }).paths;
+  const res = findPaths(input, { timeBudgetMs: 200, now: ticks() });
+  const [clean] = res.paths;
+  assert.equal(res.exact, false);
+  assert.equal(clean.appearances, raw.appearances);
+  assert.ok(raw.tickets.normal < 1000, "the capped search left normal tickets unused");
+  assert.ok(clean.tickets.lucky < raw.tickets.lucky, `lucky tickets: ${raw.tickets.lucky} -> ${clean.tickets.lucky}`);
+  assert.ok(clean.tickets.normal <= 1000);
   assert.ok(res.paths.every((p) => p.verified));
 });
 
@@ -155,11 +190,12 @@ test("every returned path re-simulates, respects each ticket budget, and ends on
     assert.ok(!sigs.has(sig), "paths must collect distinct appearance sets");
     sigs.add(sig);
   }
-  // Ranked: appearances desc, then normal tickets asc.
+  // Ranked: appearances desc, then lucky + lucky G tickets asc (saved first by default).
+  const lucky = (p) => p.tickets.lucky + p.tickets.luckyG;
   for (let i = 1; i < res.paths.length; i++) {
     const a = res.paths[i - 1];
     const b = res.paths[i];
-    assert.ok(a.appearances > b.appearances || (a.appearances === b.appearances && a.tickets.normal <= b.tickets.normal));
+    assert.ok(a.appearances > b.appearances || (a.appearances === b.appearances && lucky(a) <= lucky(b)));
   }
 });
 
@@ -179,7 +215,7 @@ test("one banner is one fixed path; a second banner steers around dupes", () => 
   // Seed 3141592653: rolling only Catseye (dupes included) never lands on the
   // Uber Rare Catseyes at 31B and 42A. Mixing in Lucky Ticket lets the search
   // pick where the dupes happen, and it collects twice as many.
-  const base = { seed: 3141592653, lastItem: "cat-energy", targets: ["uber-rare-catseye"] };
+  const base = { seed: 3141592653, lastItem: "cat-energy", targets: ["uber-rare-catseye"], saveTickets: "normal" };
   const hits = (p) => p.steps.filter((s) => s.hit).map((s) => s.pos);
   const alone = findPaths({ ...base, bannerIds: ["ce"], tickets: { normal: 45 } });
   const mixed = findPaths({ ...base, bannerIds: ["ce", "lt"], tickets: { normal: 45, lucky: 10 } });

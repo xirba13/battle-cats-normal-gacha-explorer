@@ -69,9 +69,21 @@ were taken from the rare explorer. The two may be merged later under one design.
 
 ## Search
 
-- **Ranking (user decision):** most appearances (each copy counts), then fewest
-  normal tickets, then fewest lucky + lucky G combined. Paths end at their last
-  wanted item. Each banner spends only its own ticket kind.
+- **Ranking (user decision):** most appearances (each copy counts), then the
+  fewest tickets of the kind you save first, then of the other kind. Paths end
+  at their last wanted item. Each banner spends only its own ticket kind.
+- **Save first: lucky tickets by default (user decision, 2026-10-08).** At first
+  the ranking saved normal tickets, so plans used lucky tickets as filler. A
+  player asked why 10 lucky tickets went before any Normal+ draw: they want
+  Normal+ pulls (NP, Rare Tickets). The default now saves lucky + lucky G
+  combined, so normal tickets are spent first, mostly on the base banner, and
+  lucky ones only where they're needed. `save=normal` in the link (the "Save
+  first" setting) brings back the old order. E.g. seed 2718281828, Normal+ /
+  Catseye / Lucky Ticket, 10 normal + 10 lucky, Dark Catseye: saving lucky
+  uses 10 normal + 0 lucky, saving normal 1 normal + 10 lucky, same 11B. Only
+  the ranking order changes: the exact sweep keeps the full Pareto front over
+  appearances and all three ticket counts, and the beam passes already keep
+  half their partial paths by each order.
 - **Easiest plan among equals.** Remaining ties go to the most normal-ticket
   draws on the base banner (the user picks it; default Normal+), then the fewest
   runs of same-banner draws. "Any" drops the base, leaving the fewest switches.
@@ -130,8 +142,8 @@ were taken from the rare explorer. The two may be merged later under one design.
   single draws to another banner when every other draw stays identical (same
   landing, and the next draw rolls the same item), and keeps a change only if
   the path gets strictly better by the ranking. Moves: one draw (a detour onto
-  the base banner, a normal draw onto a lucky banner while lucky tickets are
-  left, a swap that saves a switch), or a pair that trades ticket kinds (a
+  the base banner, a draw onto the ticket kind you're not saving while it has
+  tickets left, a swap that saves a switch), or a pair that trades ticket kinds (a
   detour becomes a lucky draw, a lucky draw elsewhere goes to the base). Pair
   candidates sit in buckets by their [off base, switches] change, so finding
   the best pair never rescans the path. At ~9,999 / 1,700 it removed 174 of
@@ -144,7 +156,7 @@ were taken from the rare explorer. The two may be merged later under one design.
   kind, so an order would only add Catfruit-vs-Catseye preferences.
 - **Safety nets:** every returned path is re-simulated from scratch
   (`verifyPath`); tests compare the search with a brute force over every roll
-  sequence for small budgets (6 seeds × 8 banner/ticket mixes × 3 last items).
+  sequence for small budgets (6 seeds × 8 banner/ticket mixes × 3 last items × both "Save first" orders).
 
 ## UI
 
@@ -197,7 +209,7 @@ were taken from the rare explorer. The two may be merged later under one design.
 - **Measuring note:** the Long Tasks API reports nothing in a hidden tab (it
   missed a deliberate 150 ms block in the hidden preview pane), which made an
   earlier "no task over 50 ms" claim unreliable. Use timer-gap probes instead.
-- **State** lives in the URL hash (`#s=&last=&t=n.l.g&b=&base=&i=&d=&tab=`); actions
+- **State** lives in the URL hash (`#s=&last=&t=n.l.g&b=&base=&save=&i=&d=&tab=`); actions
   that change the seed (follow a path, click an item) push a history entry so
   Back undoes them.
 

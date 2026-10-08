@@ -1,7 +1,8 @@
 // Path search: the most target appearances you can collect with your tickets.
 //
 // Ranking: most appearances (every copy counts — three Dark Catseyes = 3), then
-// fewest normal tickets, then fewest lucky + lucky G tickets combined. Each
+// the fewest tickets of the kind you're saving: by default lucky + lucky G
+// combined, then normal (input.saveTickets "normal" turns that round). Each
 // banner spends only its own ticket kind (see banners.js). Among equally good
 // paths, the easiest to follow wins: the most normal-ticket draws on your base
 // banner (e.g. Normal+), then the fewest banner switches. Without a base banner
@@ -50,13 +51,11 @@ function covers(a, b, exact) {
   if (!exact || a.j === b.j) return byEase(a, b) <= 0;
   return a.nb < b.nb || (a.nb === b.nb && a.sg < b.sg);
 }
-// Better first: more appearances, fewer normal tickets, fewer lucky + lucky G.
-// Beam passes pick partial paths by this alone (ease must never cost items).
-const byValue = (a, b) => b.s - a.s || a.n - b.n || a.l + a.g - (b.l + b.g);
-// Finished paths: the same, then the easier plan.
-const byRank = (a, b) => byValue(a, b) || byEase(a, b);
-// Alternative order for beam diversity: save lucky tickets first.
-const byLuckyFirst = (a, b) => b.s - a.s || a.l + a.g - (b.l + b.g) || a.n - b.n;
+// Better first: more appearances, then fewer of the tickets you're saving, then
+// fewer of the others. Beam passes pick partial paths by these alone (ease must
+// never cost items).
+const saveNormal = (a, b) => b.s - a.s || a.n - b.n || a.l + a.g - (b.l + b.g);
+const saveLucky = (a, b) => b.s - a.s || a.l + a.g - (b.l + b.g) || a.n - b.n;
 
 export function prepare(input) {
   const seed = Number(input.seed) >>> 0;
@@ -83,7 +82,13 @@ export function prepare(input) {
   const bound = upperBound(track, M, Tcap, targets);
   // Filler draws on normal tickets should stay on this banner when possible.
   const base = banners.findIndex((b) => b.id === input.baseBannerId && b.ticket === "normal");
-  return { seed, lastItem, budget, banners, cur, targets, T, M, Tcap, bound, track, keyAt, base };
+  // Which tickets the ranking saves first: lucky (+ lucky G) by default, or normal.
+  const save = input.saveTickets === "normal" ? "normal" : "lucky";
+  const byValue = save === "normal" ? saveNormal : saveLucky;
+  const byOther = save === "normal" ? saveLucky : saveNormal;
+  // Finished paths: by value, then the easier plan.
+  const byRank = (a, b) => byValue(a, b) || byEase(a, b);
+  return { seed, lastItem, budget, banners, cur, targets, T, M, Tcap, bound, track, keyAt, base, save, byValue, byOther, byRank };
 }
 
 // bound(m, r): most appearances reachable from state m with r more rolls,
@@ -130,7 +135,7 @@ function upperBound(track, M, Tcap, targets) {
 // (state, key) — fast, not guaranteed optimal. floor > 0 drops partial paths
 // whose upper bound can't reach `floor` appearances.
 export function sweep(P, { beam = 0, floor = 0, deadline = Infinity, maxLabels = Infinity, now = Date.now } = {}) {
-  const { M, T, Tcap, bound, budget, cur, targets, track, keyAt, base } = P;
+  const { M, T, Tcap, bound, budget, cur, targets, track, keyAt, base, byValue, byOther, byRank } = P;
   const exactEase = beam === 0; // exact switch counting only in the exact sweep
   const G1 = budget[2] + 1;
   const buckets = new Array(M).fill(null);
@@ -171,7 +176,7 @@ export function sweep(P, { beam = 0, floor = 0, deadline = Infinity, maxLabels =
     for (const [key, byCell] of byKey) {
       let labs = [];
       for (const list of byCell.values()) for (const x of list) labs.push(x);
-      if (beam && labs.length > beam) labs = pickBeam(labs, beam);
+      if (beam && labs.length > beam) labs = pickBeam(labs, beam, byValue, byOther);
       for (const lab of labs) {
         if ((++tick & 1023) === 0 && (created > maxLabels || now() > deadline)) {
           completed = false;
@@ -204,12 +209,12 @@ export function sweep(P, { beam = 0, floor = 0, deadline = Infinity, maxLabels =
   return { ends, created, completed };
 }
 
-// Half the beam by "save normal tickets", half by "save lucky tickets", so the
+// Half the beam by the ranking's ticket order, half by the opposite one, so the
 // beam doesn't burn one ticket kind early and starve later targets.
-function pickBeam(labs, beam) {
+function pickBeam(labs, beam, first, second) {
   const half = beam >> 1;
-  const a = labs.slice().sort(byValue);
-  const b = labs.slice().sort(byLuckyFirst);
+  const a = labs.slice().sort(first);
+  const b = labs.slice().sort(second);
   const picked = new Set(a.slice(0, half));
   for (const x of b) {
     if (picked.size >= beam) break;
@@ -224,7 +229,7 @@ function pickBeam(labs, beam) {
 
 // Best `topK` paths with distinct sets of collected appearances.
 function rankPaths(P, ends, topK) {
-  const sorted = ends.slice().sort((a, b) => byRank(a, b) || pathEnd(P, a) - pathEnd(P, b));
+  const sorted = ends.slice().sort((a, b) => P.byRank(a, b) || pathEnd(P, a) - pathEnd(P, b));
   const seen = new Set();
   const out = [];
   for (const e of sorted) {
@@ -317,24 +322,25 @@ function result(P, input, ends, exact, stats, verify = true) {
 // other draw stays exactly as it was (it lands in the same place and the next
 // draw rolls the same item, so the rest of the path can't change). A change is
 // kept only if it makes the path strictly better by the ranking: same wanted
-// items, then fewer normal tickets, fewer lucky + lucky G, fewer normal draws
-// off the base banner, fewer banner switches. Two kinds of change:
-//   - one draw to another banner (a detour onto the base banner, a normal draw
-//     onto Lucky Ticket while lucky tickets are left, ...);
+// items, then fewer of the tickets you're saving, fewer of the others, fewer
+// normal draws off the base banner, fewer banner switches. Two kinds of change:
+//   - one draw to another banner (a detour onto the base banner, a draw onto
+//     the ticket kind you're not saving while it has tickets left, ...);
 //   - a pair that trades ticket kinds: a normal draw becomes a lucky one and a
 //     lucky draw elsewhere a normal one (a Catseye detour becomes a Lucky Ticket
 //     draw, and an earlier lucky draw moves to Normal+).
 // A proven-optimal best path has nothing left to fix.
 
 // A move's change to the ranking key, packed into one small integer that sorts
-// the same way: normal tickets (-1..1; lucky + lucky G always moves the other
-// way), then normal draws off the base banner (-1..1), then banner runs (-2..2).
+// the same way: the tickets you're saving (-1..1; the other kind always moves
+// the other way), then normal draws off the base banner (-1..1), then banner
+// runs (-2..2).
 // Anything below NO_CHANGE is an improvement.
 const moveCode = (dn, dOff, dRuns) => (dn + 1) * 15 + (dOff + 1) * 5 + dRuns + 2;
 const NO_CHANGE = moveCode(0, 0, 0);
 
 function polish(P, path) {
-  const { track, banners, cur, base, targets, budget, lastItem } = P;
+  const { track, banners, cur, base, targets, budget, lastItem, save } = P;
   const steps = path.steps.slice();
   const N = steps.length;
   const J = new Int8Array(N); // banner index of each draw
@@ -370,7 +376,8 @@ function polish(P, path) {
       if (kind >= 0 ? k !== kind : k !== cur[j0] && used[k] >= budget[k]) continue;
       const o = tryMove(i, j);
       if (!o) continue;
-      const code = moveCode((k === 0) - (cur[j0] === 0), offBase(j) - offBase(j0), edges(i, j) - edges(i, j0));
+      const dn = (k === 0) - (cur[j0] === 0); // normal tickets used
+      const code = moveCode(save === "normal" ? dn : -dn, offBase(j) - offBase(j0), edges(i, j) - edges(i, j0));
       if (!best || code < best.code) best = { i, j, o, code };
     }
     return best;
@@ -504,7 +511,7 @@ function cleanUp(P, input, paths) {
       const q = polish(P, p);
       return q === p && p.verified !== undefined ? p : { ...q, verified: verifyPath(input, q).ok };
     })
-    .sort((a, b) => byRank(toLabel(a), toLabel(b)));
+    .sort((a, b) => P.byRank(toLabel(a), toLabel(b)));
 }
 
 // Anytime search. onUpdate(result) fires after the quick pass (and the wide
@@ -530,7 +537,7 @@ export function findPaths(input, options = {}) {
 
   const wide = sweep(P, { beam: wideBeam, deadline, now });
   const wideBest = result(P, input, wide.ends, false, stats({ labels: wide.created, phase: "wide" }));
-  if (wideBest.paths.length && (!best.paths.length || byRank(toLabel(wideBest.paths[0]), toLabel(best.paths[0])) < 0)) {
+  if (wideBest.paths.length && (!best.paths.length || P.byRank(toLabel(wideBest.paths[0]), toLabel(best.paths[0])) < 0)) {
     best = wideBest;
     onUpdate(best);
   }
